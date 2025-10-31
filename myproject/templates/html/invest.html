@@ -1,0 +1,829 @@
+<!--
+# 在项目根（d:\VSCode_Data\Project\finance_system）运行一次（如果有 Python）：
+python -m http.server 8000
+# 然后在浏览器打开：
+http://localhost:8000/html/invest.html
+-->
+
+{% load static %}  <!-- 加载模板标签库 -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>Invest — 导航栏示例</title>
+	<style>
+		:root{
+			--nav-height:64px;
+			--nav-bg:#2f6fe8; /* 主蓝色 */
+			--nav-bg-dark:#2a63d1;
+			--container-width:1180px;
+			--text-light: #ffffff;
+			--muted: rgba(255,255,255,0.85);
+            --sep-color: #d0cfcf;
+		}
+		html,body{height:100%;margin:0;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+		/* 顶部导航 */
+		.topbar{
+			height:var(--nav-height);
+			background: linear-gradient(180deg,var(--nav-bg),var(--nav-bg-dark));
+			color:var(--text-light);
+			display:flex;
+			align-items:center;
+			box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+		}
+        .topbar .wrap{
+            width:100%;
+            max-width:var(--container-width);
+            margin:0 auto;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            padding:0 16px;
+            box-sizing:border-box;
+        }
+        /* 左侧容器：包含 logo 和 主导航，整体靠左 */
+		.left{
+			display:flex;
+			align-items:center;
+			gap:12px;
+			flex:1; /* 占据主区域，推动右侧 actions 靠右 */
+		}
+		/* 左侧 logo */
+		.logo{
+			display:flex;
+            align-items:center;
+            gap:12px;
+            color:var(--text-light);
+            text-decoration:none;
+            font-weight:600;
+            font-size:18px;
+		}
+		.logo .mark{
+			width:36px;
+			height:36px;
+			border-radius:6px;
+			display:block;
+			object-fit:cover;
+			overflow:hidden;
+		}
+		/* 中间导航 */
+        .nav{
+            display:flex;
+            align-items:center;
+            gap:20px;
+            margin-left:12px;
+            justify-content:flex-start;
+        }
+		.nav a{
+            color:var(--muted);
+            text-decoration:none;
+            padding:10px 8px;
+            border-radius:4px;
+            font-size:15px
+        }
+		.nav a:hover{
+            color:var(--text-light);
+            background:rgba(255,255,255,0.06)
+        }
+		.nav .active{
+            color:var(--text-light);
+            background:rgba(255,255,255,0.08)
+        }
+		/* 右侧操作区 */
+		.actions{
+            display:flex;
+            align-items:center;
+            gap:12px
+        }
+		.btn{
+			background:transparent;
+            border:1px solid rgba(255,255,255,0.12);
+            color:var(--text-light);
+            padding:8px 12px;
+            border-radius:6px;
+            font-size:14px;
+            text-decoration:none;
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+		}
+		.btn.primary{
+            background: #ff7a00;
+            border-color: #ff7a00;
+            color:#fff
+        }
+		.user{
+			display:flex;
+            align-items:center;
+            gap:8px;
+            color:var(--text-light);
+            padding:6px 8px;
+            border-radius:6px;
+            font-size:14px;
+            text-decoration:none
+		}
+		.user .avatar{
+            width:32px;
+            height:32px;
+            border-radius:50%;
+            background:rgba(255,255,255,0.18);
+            display:inline-block;
+        }
+		/* 响应 */
+		@media (max-width:1000px){
+			.nav{display:none}
+		}
+		@media (max-width:420px){
+			.wrap{padding:0 8px}
+			.logo span{display:none}
+		}
+
+		/* 页面主内容 */
+		.main-content{
+			padding:40px;
+			font-size:14px;
+			color:#333;
+		}
+
+		/* 三数字行：三段数字，中间用短竖线分隔，并平铺整行 */
+		.stats-row{
+			display:flex;
+			align-items:center;
+			width:100%;
+		}
+		.num-block{
+			flex:1;
+			text-align:center;
+			font-size:28px;
+			font-weight:700;
+			color:#222;
+			padding:18px 8px;
+			display:flex;
+			flex-direction:column;
+			align-items:center;
+			gap:6px;
+		}
+		.num-block .num-title{
+			font-size:13px;
+			color:#666;
+			font-weight:500;
+		}
+		.num-block .num-value{
+			font-size:28px;
+			font-weight:700;
+			color:#222;
+		}
+		.sep{
+			width:2px;
+			height:5vh; /* 短竖线 */
+			background:var(--sep-color);
+		}
+        .sep-line{
+            width:100%;
+            height:2px;
+            background:var(--sep-color);
+            margin:24px 0;
+        }
+
+		/* 股票查询区样式（已将原内联样式移至此处） */
+		#stock-search{ max-width:880px; margin:0 auto; }
+		#stock-search .controls{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+		#stock-search label{ flex:1; min-width:220px; display:block; }
+		#stock-search .field-title{ font-size:13px; color:#666; margin-bottom:6px; display:block; }
+		#stock-search input[type="text"],
+		#stock-search input[type="number"],
+		#selected-date{ width:80%; padding:10px; border:1px solid var(--sep-color); border-radius:6px; font-size:14px; box-sizing:border-box; }
+		/* 隐藏的原生日期控件：透明覆盖在展示输入上以实现单框交互 */
+
+		.date-wrapper{ display:flex; gap:8px; align-items:center; position:relative }
+		.date-wrapper #selected-date{ flex:1 }
+		/* 将原生日历输入透明覆盖在右侧按钮处以触发系统选择器（不改变可见样式） */
+		.hidden-date{
+			position:absolute;
+			right:0;
+			top:0;
+			width:44px; /* 覆盖按钮区域 */
+			height:100%;
+			opacity:0; /* 看不见但可点击 */
+			border:0; background:transparent; cursor:pointer; z-index:3;
+		}
+		#selected-date::placeholder{ color:#bfbfbf }
+		#stock-search button#btn-clear{ height:44px; }
+		#stock-search #search-note{ margin-top:10px; color:#666; font-size:13px; }
+		#stock-search #not-found{ margin-top:8px; color:#c0392b; font-size:13px; display:none }
+		#stock-search #stock-info{ margin-top:20px; padding:16px; border:1px dashed #e6e6e6; border-radius:8px; display:none }
+        #stock-search .info-row{ display:flex; gap:18px; align-items:center; flex-wrap:wrap }
+        #stock-search .info-col{ min-width:180px }
+        #stock-search .info-chart-col{ flex:1; min-width:260px }
+        #stock-search .info-col .field-title,
+        #stock-search .info-chart-col .field-title{ font-size:12px; color:#888 }
+        #stock-search #today-price{ font-size:22px; font-weight:700; margin-top:6px }
+        #stock-search #price-diff{ font-size:18px; margin-top:6px; color:#333 }
+        #stock-search #chart-area{ height:120px; border-radius:6px; background:linear-gradient(180deg,#fafafa,#fff); margin-top:8px; display:flex; align-items:center; justify-content:center; color:#bbb }
+        #stock-search #stock-meta{ margin-top:12px; color:#666; font-size:13px }
+
+		/* 购入控件样式（初始隐藏，找到股票时显示） */
+		#buy-controls{
+			margin-top:14px;
+			display:none;
+			width:100%;
+			align-items:center;
+			gap:12px;
+			justify-content:space-between;
+			flex-wrap:nowrap;
+		}
+		/* 左侧保持一行，不换行 */
+		#buy-controls .buy-left{
+			display:flex;
+			align-items:center;
+			gap:8px;
+			flex:1 1 auto;
+			min-width:0;
+			flex-wrap:nowrap;
+			white-space:nowrap;
+		}
+		/* 固定较小宽度，避免换行 */
+		#buy-count{ padding:8px 10px; border:1px solid #ddd; border-radius:6px; width:90px; font-size:14px; box-sizing:border-box; flex:0 0 auto }
+		#buy-amount{ padding:8px 10px; border:1px solid #ddd; border-radius:6px; width:120px; font-size:14px; box-sizing:border-box; background:#f7f7f7; flex:0 0 auto }
+		#buy-controls .buy-actions{ display:flex; flex-direction:column; gap:8px; align-items:flex-end }
+		#btn-buy{ background:#2f6fe8; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer }
+		#btn-buy-cancel{ background:#f3f3f3; color:#333; border:1px solid #ddd; padding:8px 14px; border-radius:6px; cursor:pointer }
+	</style>
+</head>
+<body>
+	<header class="topbar" role="banner">
+		<div class="wrap">
+			<div class="left">
+				<a class="logo" href="#">
+					<img class="mark" src="{% static 'sources/pic/logo.png' %}" alt="logo">
+					<span>花梨投资小课堂</span>
+				</a>
+				<nav class="nav" role="navigation" aria-label="主导航">
+					<a href="{% url 'overview' %}">投资概览</a>
+					<a class="active" href="#">订阅股票</a>
+					<a href="{% url 'record' %}">买卖记录</a>
+					<a href="#">金融分析</a>
+					<a href="#">金融编程</a>
+					<a href="#">更多</a>
+				</nav>
+			</div>
+			<div class="actions">
+				<a class="user" href="#">
+					<span class="avatar" aria-hidden="true"></span>
+					<span>用户1234</span>
+				</a>
+			</div>
+		</div>
+	</header>
+
+	<!-- 页面其余占位内容，仅用于视觉对比 -->
+	<main class="main-content">
+        <h2>欢迎您，用户1234！</h2>
+		<!-- 三数字行：三个等宽数字，中间用灰色短竖线分隔，整行平铺 -->
+		<div class="stats-row" aria-label="关键数字">
+			<div class="num-block">
+				<div class="num-title">投入资产</div>
+				<div class="num-value">128</div>
+			</div>
+			<div class="sep" aria-hidden="true"></div>
+			<div class="num-block">
+				<div class="num-title">剩余资产</div>
+				<div class="num-value">512</div>
+			</div>
+		</div>
+        <div class="sep-line" aria-hidden="true"></div>
+
+		<!-- 股票查询区域 -->
+		<section id="stock-search">
+			<h3>查询股票</h3>
+			<div class="controls">
+				<label>
+					<div class="field-title">股票代码</div>
+					<input id="input-code" type="text" placeholder="例如 000001 或 600519" />
+				</label>
+				<label>
+					<div class="field-title">股票名称</div>
+					<input id="input-name" type="text" placeholder="例如 平安银行 或 贵州茅台" />
+				</label>
+				<!-- 新增：选择日期（旁边显示输入 + 下方日期选择器） -->
+				<label class="date-label">
+					<div class="field-title">选择日期（股市工作日开放）</div>
+					<div class="date-wrapper">
+						<input id="selected-date" type="text" placeholder="yyyy/mm/dd" readonly />
+						<!-- 原生日期输入（隐藏），由按钮触发 showPicker/click -->
+						<input id="date-picker" type="date" aria-label="选择日期" class="hidden-date" />
+					</div>
+				</label>
+				<button id="btn-clear" class="btn">清除</button>
+			</div>
+
+			<div id="search-note">输入股票代码或名称，若在本地 CSV 中存在匹配项，将自动填充另一个输入框并展示信息占位。</div>
+
+			<!-- 未收录提示 -->
+			<div id="not-found">该股票尚未收录，请更换代码尝试</div>
+
+			<!-- 展示区域（先用占位） -->
+			<div id="stock-info">
+				<div class="info-row">
+					<div class="info-col">
+						<div class="field-title">今日股价</div>
+						<div id="today-price">—</div>
+					</div>
+					<div class="info-col">
+						<div class="field-title">较昨日变化</div>
+						<div id="price-diff">—</div>
+					</div>
+					<div class="info-chart-col">
+						<div class="field-title">近30天走势（占位）</div>
+						<div id="chart-area">折线图占位</div>
+					</div>
+				</div>
+				<div id="stock-meta">股票信息占位：代码 / 名称 / 其他</div>
+			</div>
+				<!-- 购入控件：在走势图下方显示 -->
+				<div id="buy-controls">
+					<div class="buy-left">
+						<span style="color:#444;font-size:14px;">购入股数：</span>
+						<input id="buy-count" type="number" min="1" placeholder="输入股数" />
+					</div>
+					<div class="buy-actions">
+						<button id="btn-buy">购入</button>
+						<button id="btn-buy-cancel">取消</button>
+					</div>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+	// 小型 CSV 解析 + 前端查询逻辑
+	(function(){
+			// 使用后端提供的稳定 URL 来获取 CSV，避免相对路径在模板路由下导致 404
+			const csvPath = '/stock-csv/';
+
+		// 简单 debounce
+		function debounce(fn, ms){
+			let t = null; return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), ms); }
+		}
+
+		// 轻量 CSV 解析（支持双引号）
+		function parseCSV(text){
+			const rows = [];
+			let cur = [];
+			let field = '';
+			let inQuotes = false;
+			for(let i=0;i<text.length;i++){
+				const ch = text[i];
+				const next = text[i+1];
+				if(inQuotes){
+					if(ch === '"'){
+						if(next === '"'){ field += '"'; i++; } else { inQuotes = false; }
+					} else {
+						field += ch;
+					}
+				} else {
+					if(ch === '"'){
+						inQuotes = true;
+					} else if(ch === ','){
+						cur.push(field); field = '';
+					} else if(ch === '\r'){
+						// ignore
+					} else if(ch === '\n'){
+						cur.push(field); field=''; rows.push(cur); cur=[];
+					} else {
+						field += ch;
+					}
+				}
+			}
+			// 最后一行（若无换行结尾）
+			if(field !== '' || cur.length>0){ cur.push(field); rows.push(cur); }
+			return rows;
+		}
+
+		// 将 CSV 转为对象数组（第一行为 header）
+		function csvToObjects(text){
+			const rows = parseCSV(text);
+			if(rows.length === 0) return [];
+			const headers = rows[0].map(h=>String(h||'').trim());
+			const data = [];
+			for(let i=1;i<rows.length;i++){
+				const r = rows[i];
+				if(r.length === 1 && r[0].trim() === '') continue; // skip blank
+				const obj = {};
+				for(let j=0;j<headers.length;j++){
+					obj[headers[j] || j] = (r[j] !== undefined ? r[j] : '').trim();
+				}
+				data.push(obj);
+			}
+			return {headers, data};
+		}
+
+		// 尝试从 headers 中匹配某列名（若存在），使用候选词
+		function findHeader(headers, candidates){
+			const low = headers.map(h=>String(h||'').toLowerCase());
+			for(const c of candidates){
+				const idx = low.findIndex(h=>h === c.toLowerCase());
+				if(idx !== -1) return headers[idx];
+			}
+			// 次优：包含关键词
+			for(const c of candidates){
+				const idx = low.findIndex(h=>h.includes(c.toLowerCase()));
+				if(idx !== -1) return headers[idx];
+			}
+			return null;
+		}
+
+		// UI refs
+		const inputCode = document.getElementById('input-code');
+		const inputName = document.getElementById('input-name');
+		const infoBox = document.getElementById('stock-info');
+		const notFoundEl = document.getElementById('not-found');
+		const buyControlsEl = document.getElementById('buy-controls');
+		const todayPriceEl = document.getElementById('today-price');
+		const priceDiffEl = document.getElementById('price-diff');
+		const chartArea = document.getElementById('chart-area');
+		const stockMeta = document.getElementById('stock-meta');
+		const btnClear = document.getElementById('btn-clear');
+		// 新增：日期显示与选择器
+		const selectedDateEl = document.getElementById('selected-date');
+		const datePickerEl = document.getElementById('date-picker');
+		const dateBtn = document.getElementById('date-btn');
+
+		let indexedByCode = {};
+		let indexedByName = {};
+		let groupedByCode = {};
+
+		async function loadAndIndex(){
+			try{
+				const res = await fetch(csvPath);
+				if(!res.ok) throw new Error('无法加载 CSV: ' + res.status);
+				const text = await res.text();
+				const {headers, data} = csvToObjects(text);
+
+				// 候选列名
+				const codeCandidates = ['代码','ts_code','stock_code','code','symbol','ticker'];
+				const nameCandidates = ['名称','name','stock_name','fullname','简称'];
+				const dateCandidates = ['date','日期','trade_date'];
+				const closeCandidates = ['close','收盘','close_price','price','adj_close'];
+
+				const codeCol = findHeader(headers, codeCandidates) || headers[0];
+				const nameCol = findHeader(headers, nameCandidates) || headers[1] || null;
+				const dateCol = findHeader(headers, dateCandidates) || null;
+				const closeCol = findHeader(headers, closeCandidates) || null;
+
+				indexedByCode = {};
+				indexedByName = {};
+				groupedByCode = {};
+
+				data.forEach(row=>{
+					const code = String(row[codeCol] || '').trim();
+					const name = nameCol ? String(row[nameCol] || '').trim() : '';
+					if(!code && !name) return;
+					const keyCode = code.toLowerCase();
+					const keyName = name.toLowerCase();
+
+					// store first-seen as metadata if not present
+					if(code){
+						if(!indexedByCode[keyCode]) indexedByCode[keyCode] = {code, name, rows: []};
+						indexedByCode[keyCode].rows.push(row);
+					}
+					if(name){
+						if(!indexedByName[keyName]) indexedByName[keyName] = {code, name, rows: []};
+						indexedByName[keyName].rows.push(row);
+					}
+					// group by code
+					if(code){
+						if(!groupedByCode[keyCode]) groupedByCode[keyCode] = [];
+						groupedByCode[keyCode].push(row);
+					}
+				});
+
+				// 如果 grouped 有日期字段，按日期降序排列（尝试识别 yyyy-mm-dd 或 yyyymmdd）
+				if(dateCol){
+					Object.keys(groupedByCode).forEach(k=>{
+						groupedByCode[k].sort((a,b)=>{
+							const da = String(a[dateCol]||'');
+							const db = String(b[dateCol]||'');
+							return (db.localeCompare(da));
+						});
+					});
+				}
+
+				// expose columns for later usage
+				loadAndIndex._cols = {codeCol,nameCol,dateCol,closeCol,headers};
+
+			}catch(err){
+				console.error('加载 CSV 失败', err);
+			}
+		}
+
+		function showStockByCode(rawCode){
+			if(!rawCode) return;
+			const k = String(rawCode).trim().toLowerCase();
+			const meta = indexedByCode[k];
+			if(meta){
+				// 填充 name
+				if(meta.name) inputName.value = meta.name;
+				// 仅在用户已选择日期时展示详细信息
+				if(datePickerEl && datePickerEl.value){
+					notFoundEl.style.display = 'none';
+					showInfoForCode(k);
+				} else {
+					// 提示用户先选择日期
+					notFoundEl.textContent = '请先选择日期以查看详细内容';
+					notFoundEl.style.display = 'block';
+					infoBox.style.display = 'none';
+					if(buyControlsEl) buyControlsEl.style.display = 'none';
+				}
+				return true;
+			}
+			return false;
+		}
+
+		function showStockByName(rawName){
+			if(!rawName) return;
+			const k = String(rawName).trim().toLowerCase();
+			let meta = indexedByName[k];
+			if(!meta){
+				// 尝试模糊匹配（包含）
+				const keys = Object.keys(indexedByName).find(n=>n.includes(k));
+				if(keys) meta = indexedByName[keys];
+			}
+			if(meta){
+				if(meta.code) inputCode.value = meta.code;
+				// 仅在用户已选择日期时展示详细信息
+				const codeKey = String(meta.code||'').toLowerCase();
+				if(datePickerEl && datePickerEl.value){
+					notFoundEl.style.display = 'none';
+					showInfoForCode(codeKey);
+				} else {
+					notFoundEl.textContent = '请先选择日期以查看详细内容';
+					notFoundEl.style.display = 'block';
+					infoBox.style.display = 'none';
+					if(buyControlsEl) buyControlsEl.style.display = 'none';
+				}
+				
+				return true;
+			}
+			return false;
+		}
+
+		function showInfoForCode(codeKey){
+			const cols = loadAndIndex._cols || {};
+			const group = groupedByCode[codeKey] || [];
+			infoBox.style.display = 'block';
+			// 显示购入控件（只有在成功展示股票信息时）
+			if(buyControlsEl) buyControlsEl.style.display = 'flex';
+			stockMeta.textContent = (indexedByCode[codeKey] ? (indexedByCode[codeKey].code + ' / ' + (indexedByCode[codeKey].name||'—')) : '—');
+
+			// 尝试计算今日与昨日价格
+			if(cols.dateCol && cols.closeCol && group.length>0){
+				const latest = group[0];
+				const prev = group[1];
+				const latestPrice = parseFloat(String(latest[cols.closeCol]||'').replace(/,/g,''));
+				const prevPrice = prev ? parseFloat(String(prev[cols.closeCol]||'').replace(/,/g,'')) : NaN;
+				if(!isNaN(latestPrice)){
+					todayPriceEl.textContent = latestPrice;
+				} else { todayPriceEl.textContent = '—'; }
+				if(!isNaN(prevPrice)){
+					const diff = latestPrice - prevPrice;
+					const pct = (diff / prevPrice * 100).toFixed(2);
+					const sign = diff>0 ? '+' : (diff<0? '': '');
+					priceDiffEl.textContent = `${sign}${diff.toFixed(2)} (${pct}%)`;
+					priceDiffEl.style.color = diff>0? '#d9534f' : (diff<0? '#29a673' : '#333');
+				} else {
+					priceDiffEl.textContent = '—';
+					priceDiffEl.style.color = '#333';
+				}
+			} else {
+				todayPriceEl.textContent = '—';
+				priceDiffEl.textContent = '—';
+				priceDiffEl.style.color = '#333';
+			}
+
+			// chartArea 保持占位（后续可以集成 Chart.js 或绘制 SVG）
+			chartArea.textContent = '（折线图占位 — 可通过集成 Chart.js 补充）';
+
+			// 同步向后端请求更详细的实时信息（可触发 buy_stock.py）
+			if(codeKey){
+				// 有些页面没有实现 fetchStockInfoFromServer，直接调用会抛出 ReferenceError，
+				// 导致上层事件处理器中断（例如 tryMatchCode/tryMatchName 无法继续执行），
+				// 从而出现“未收录”提示未被清除的问题。
+				if(typeof fetchStockInfoFromServer === 'function'){
+					try{
+						fetchStockInfoFromServer(codeKey);
+					}catch(err){
+						console.warn('fetchStockInfoFromServer 调用失败：', err);
+					}
+				}
+			}
+		}
+
+		// 绑定事件（输入时尝试匹配并互相填充）
+		const tryMatchCode = debounce(function(){
+			const v = inputCode.value.trim();
+			if(!v){
+				// 若代码为空，隐藏提示与信息，但不改变名称（用户可能正在切换）
+				notFoundEl.style.display = 'none';
+				infoBox.style.display = 'none';
+				if(buyControlsEl) buyControlsEl.style.display = 'none';
+				return;
+			}
+			const found = showStockByCode(v);
+			if(found){
+				notFoundEl.style.display = 'none';
+				return;
+			}
+			// 如果本地未命中，尝试请求后端 API
+			fetch(`/stock-lookup/?code=${encodeURIComponent(v)}`)
+				.then(r=>r.json())
+				.then(j=>{
+					if(j && j.found){
+						if(j.name) inputName.value = j.name;
+						notFoundEl.style.display = 'none';
+						// 若已选日期，展示详情
+						if(datePickerEl && datePickerEl.value){
+							showInfoForCode(String(j.code||'').toLowerCase());
+						}
+					} else {
+						// 未找到则提示并清空名称输入
+						notFoundEl.style.display = 'block';
+						infoBox.style.display = 'none';
+						if(buyControlsEl) buyControlsEl.style.display = 'none';
+						inputName.value = '';
+					}
+				})
+				.catch(err=>{
+					console.warn('stock-lookup 请求失败', err);
+				});
+		}, 240);
+
+		const tryMatchName = debounce(function(){
+			const v = inputName.value.trim();
+			if(!v){
+				// 若名称为空，隐藏提示与信息，并清空代码输入
+				notFoundEl.style.display = 'none';
+				infoBox.style.display = 'none';
+				// 按用户要求：清空代码输入
+				inputCode.value = '';
+				if(buyControlsEl) buyControlsEl.style.display = 'none';
+				return;
+			}
+			const found = showStockByName(v);
+			if(found){
+				notFoundEl.style.display = 'none';
+				return;
+			}
+			// 本地未命中，尝试后端模糊/精确查询
+			fetch(`/stock-lookup/?name=${encodeURIComponent(v)}`)
+				.then(r=>r.json())
+				.then(j=>{
+					if(j && j.found){
+						if(j.code) inputCode.value = j.code;
+						notFoundEl.style.display = 'none';
+						// 若已选日期，展示详情
+						if(datePickerEl && datePickerEl.value){
+							showInfoForCode(String(j.code||'').toLowerCase());
+						}
+					} else {
+						// 未找到则提示并清空代码输入
+						notFoundEl.style.display = 'block';
+						infoBox.style.display = 'none';
+						if(buyControlsEl) buyControlsEl.style.display = 'none';
+						inputCode.value = '';
+					}
+				})
+				.catch(err=>{
+					console.warn('stock-lookup 请求失败', err);
+				});
+		}, 240);
+
+		inputCode.addEventListener('input', tryMatchCode);
+		inputName.addEventListener('input', tryMatchName);
+
+		btnClear.addEventListener('click', function(){
+			inputCode.value = '';
+			inputName.value = '';
+			infoBox.style.display = 'none';
+			notFoundEl.style.display = 'none';
+			if(buyControlsEl) buyControlsEl.style.display = 'none';
+			// 清除选择的日期
+			if(selectedDateEl) selectedDateEl.value = '';
+			if(datePickerEl) datePickerEl.value = '';
+		});
+
+		// 设置日期控件最大可选为今天，并绑定交互
+		(function setupDatePicker(){
+			if(!datePickerEl) return;
+			const d = new Date();
+			const y = d.getFullYear();
+			const m = String(d.getMonth()+1).padStart(2,'0');
+			const day = String(d.getDate()).padStart(2,'0');
+			const iso = `${y}-${m}-${day}`;
+			datePickerEl.max = iso;
+			// 格式化为 yyyy/mm/dd
+			function fmt(isoDate){
+				if(!isoDate) return '';
+				const dt = new Date(isoDate);
+				if(isNaN(dt)) return isoDate;
+				const Y = dt.getFullYear();
+				const M = String(dt.getMonth()+1).padStart(2,'0');
+				const D = String(dt.getDate()).padStart(2,'0');
+				return `${Y}/${M}/${D}`;
+			}
+			// 当选择日期时，填充只读显示输入（格式 yyyy/mm/dd）
+			datePickerEl.addEventListener('change', function(){
+				// 验证：不能选择周末
+				if(this.value){
+					const sel = new Date(this.value);
+					const wd = sel.getDay(); // 0 = Sunday, 6 = Saturday
+					if(wd === 0 || wd === 6){
+						// 提示并清空
+						notFoundEl.textContent = '所选日期为周末，请选择工作日';
+						notFoundEl.style.display = 'block';
+						this.value = '';
+						if(selectedDateEl) selectedDateEl.value = '';
+						// 隐藏详情
+						infoBox.style.display = 'none';
+						if(buyControlsEl) buyControlsEl.style.display = 'none';
+						return;
+					}
+				}
+				// 格式化显示
+				if(selectedDateEl) selectedDateEl.value = this.value ? fmt(this.value) : '';
+				// 如果用户已输入代码或名称，选择日期后自动尝试展示详细信息
+				const codeVal = inputCode.value.trim();
+				const nameVal = inputName.value.trim();
+				if(this.value){
+					if(codeVal){
+						// 若存在有效代码并在索引中，直接展示
+						const k = String(codeVal).toLowerCase();
+						if(indexedByCode[k]){
+							notFoundEl.style.display = 'none';
+							showInfoForCode(k);
+							return;
+						}
+					}
+					if(nameVal){
+						const nk = String(nameVal).toLowerCase();
+						let meta = indexedByName[nk];
+						if(!meta){
+							const keys = Object.keys(indexedByName).find(n=>n.includes(nk));
+							if(keys) meta = indexedByName[keys];
+						}
+						if(meta && meta.code){
+							const codeKey = String(meta.code).toLowerCase();
+							notFoundEl.style.display = 'none';
+							showInfoForCode(codeKey);
+							return;
+						}
+					}
+					// 如果到这里仍无法展示，保持提示（若之前是因未选择日期而显示提示，则保留）
+				}
+			});
+			// 点击显示输入或按钮时打开原生日期选择器
+			function openPicker(){
+				try{
+					if(typeof datePickerEl.showPicker === 'function') datePickerEl.showPicker();
+					else { datePickerEl.click(); datePickerEl.focus(); }
+				}catch(e){ try{ datePickerEl.click(); datePickerEl.focus(); }catch(_){ /* ignore */ } }
+			}
+			if(selectedDateEl) selectedDateEl.addEventListener('click', openPicker);
+			if(dateBtn) dateBtn.addEventListener('click', openPicker);
+		})();
+
+		// 初始加载
+		loadAndIndex().then(()=>{
+			// 已加载，可选：若输入框已有内容，触发一次匹配
+			if(inputCode.value.trim()) tryMatchCode();
+			if(inputName.value.trim()) tryMatchName();
+		});
+
+		// 购入控件行为：简单模拟
+		const buyCountEl = document.getElementById('buy-count');
+		const btnBuy = document.getElementById('btn-buy');
+		const btnBuyCancel = document.getElementById('btn-buy-cancel');
+
+		btnBuy.addEventListener('click', function(){
+			const v = parseInt(buyCountEl.value, 10);
+			if(!v || v <= 0){
+				alert('请输入有效的购入股数（大于 0）');
+				return;
+			}
+			// 简单模拟：提示已提交（真实场景应调用后端接口）
+			alert(`已提交购买：${v} 股（模拟）`);
+			// 可选：清空输入，隐藏信息等
+			buyCountEl.value = '';
+		});
+
+		btnBuyCancel.addEventListener('click', function(){
+			buyCountEl.value = '';
+		});
+
+	})();
+	</script>
+
+	</body>
+</html>
+
