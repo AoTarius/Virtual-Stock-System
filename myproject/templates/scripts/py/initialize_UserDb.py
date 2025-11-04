@@ -12,7 +12,7 @@ def initialize_user_db(db_path):
         CREATE TABLE IF NOT EXISTS Users (
             user_id     INTEGER(10)   NOT NULL UNIQUE,
             username    CHAR(30)      NOT NULL,
-            deposit     REAL          NOT NULL DEFAULT 0,
+            funds       REAL          NOT NULL DEFAULT 0,
             PRIMARY KEY(user_id)
         )
     ''')
@@ -24,13 +24,26 @@ def initialize_user_db(db_path):
 def create_default_user(db_path):
     conn = sqlite3.connect(db_path)
     conn.execute('''
-        INSERT OR IGNORE INTO Users (user_id, username, deposit)
+        INSERT OR IGNORE INTO Users (user_id, username, funds)
         VALUES (1, '用户1', 0)
     ''')
     conn.commit()
     conn.close()
     print("默认用户创建完成")
 
+# 重置用户目标用户数据
+def reset_user_data(db_path, user_id):
+    conn = sqlite3.connect(db_path)
+    conn.execute('''
+        DELETE FROM Users
+        WHERE user_id = ?
+    ''', (user_id,))
+
+    conn.commit()
+    conn.close()
+    print("用户数据已重置")
+
 if __name__ == "__main__":
-    initialize_user_db('myproject/templates/db/user.db')
-    create_default_user('myproject/templates/db/user.db')
+    # initialize_user_db('myproject/templates/db/user.db') # 初始化数据库
+    create_default_user('myproject/templates/db/user.db') # 创建默认用户
+    # reset_user_data('myproject/templates/db/user.db', 1)  # 重置用户1的数据
