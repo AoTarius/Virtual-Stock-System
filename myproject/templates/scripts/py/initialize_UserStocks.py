@@ -13,11 +13,12 @@ def initialize_userStocks_db(db_path):
         CREATE TABLE IF NOT EXISTS UserStocks (
             user_id   INTEGER NOT NULL,
             stockID   TEXT    NOT NULL,
-            Time      TEXT    NOT NULL,
+            time      TEXT    NOT NULL,
             operation TEXT    NOT NULL,
             piles     INTEGER NOT NULL,
             unitPrice REAL    NOT NULL,
-            PRIMARY KEY(user_id, stockID)
+            cost      REAL    NOT NULL,
+            PRIMARY KEY(user_id, stockID, time)
         )
     ''')
     conn.commit()
@@ -41,12 +42,13 @@ def reset_user_stocks(db_path, user_id):
 # 股票代码 000001
 def insert_default_stock(db_path, user_id, stockID='000001', piles=10, unitPrice=5.0):
     import datetime
+    cost = piles * unitPrice
     conn = sqlite3.connect(db_path)
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn.execute('''
-        INSERT OR IGNORE INTO UserStocks (user_id, stockID, Time, operation, piles, unitPrice)
-        VALUES (?, ?, ?, '购买', ?, ?)
-    ''', (user_id, stockID, current_time, piles, unitPrice))
+        INSERT OR IGNORE INTO UserStocks (user_id, stockID, time, operation, piles, unitPrice, cost)
+        VALUES (?, ?, ?, '购买', ?, ?, ?)
+    ''', (user_id, stockID, current_time, piles, unitPrice, cost))
     conn.commit()
     conn.close()
     print("默认股票插入完成")

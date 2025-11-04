@@ -10,8 +10,9 @@ def initialize_user_db(db_path):
     # Create the Users table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS Users (
-            user_id INTEGER(10)     NOT NULL UNIQUE,
-            username CHAR(30)       NOT NULL,
+            user_id     INTEGER(10)   NOT NULL UNIQUE,
+            username    CHAR(30)      NOT NULL,
+            deposit     REAL          NOT NULL DEFAULT 0,
             PRIMARY KEY(user_id)
         )
     ''')
@@ -23,8 +24,8 @@ def initialize_user_db(db_path):
 def create_default_user(db_path):
     conn = sqlite3.connect(db_path)
     conn.execute('''
-        INSERT OR IGNORE INTO Users (user_id, username)
-        VALUES (1, '用户1')
+        INSERT OR IGNORE INTO Users (user_id, username, deposit)
+        VALUES (1, '用户1', 0)
     ''')
     conn.commit()
     conn.close()
