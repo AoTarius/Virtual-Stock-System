@@ -15,12 +15,12 @@ def get_stock30(end_date, code):
         print(f"Error occurred: {e}")
     return None
 
-# 获取当天的股票信息
-def get_stock_today(code):
+# 获取目标日期的股票信息
+def get_stock1(date, code):
     token = 'fadb2289dc9b029eb4d43c567f11830de2ccddf28193dc4f8e9d864c'
     pro = ts.pro_api(token)
     try:
-        df = pro.daily(ts_code=code, end_date=None, start_date=None, limit=1, fields='ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount')
+        df = pro.daily(ts_code=code, end_date=date, start_date=date, limit=1, fields='ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount')
         print(df)
         return df
     except Exception as e:
@@ -115,4 +115,4 @@ if __name__ == "__main__":
     # deposit_funds(1, 1000)  # 用户1充值1000
     # buy_stock(1, '000001', current_time, 10, 5.0)  # 用户1购买股票000001，10股，单价5.0
     # get_stock30('20240620', '000001.SZ')  # 获取股票600519在2024-06-20的30天数据
-    get_stock_today('000001.SZ')  # 获取股票600519的当天数据
+    get_stock1('20240620', '000001.SZ')  # 获取股票600519在2024-06-20的当天数据

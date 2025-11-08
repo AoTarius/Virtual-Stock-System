@@ -362,6 +362,45 @@ http://localhost:8000/html/invest.html
 			// 使用 Django 反向 URL，以便在 routes 被包含到任意前缀下仍能正确访问
 			const csvPath = "{% url 'stock_csv' %}";
 			const lookupPath = "{% url 'stock_lookup' %}";
+			const stockInfoPath = "{% url 'stock_info' %}";
+
+			// 向后端请求指定日期和代码的单日行情（调用 StockOperations.get_stock1）
+			async function fetchStockInfoFromServer(codeKey){
+				try{
+					// 查找索引中的元信息以构造带 market 的代码（优先不重复添加后缀）
+					const meta = indexedByCode[codeKey] || indexedByName[codeKey] || null;
+					if(!meta) return;
+					let codeToSend = meta.code || '';
+					// 如果 code 已包含 '.' 则不再追加 market
+					if(codeToSend && !codeToSend.includes('.') && meta.market){
+						codeToSend = `${codeToSend}.${meta.market}`;
+					}
+					// 需要日期为 YYYYMMDD（StockOperations 接受该格式）
+					if(!datePickerEl || !datePickerEl.value) return;
+					const dateParam = datePickerEl.value.replace(/-/g,'');
+					const url = `${stockInfoPath}?date=${encodeURIComponent(dateParam)}&code=${encodeURIComponent(codeToSend)}`;
+					const res = await fetch(url);
+					if(!res.ok) { throw new Error('network'); }
+					const j = await res.json();
+					if(j && j.found){
+						// 填写返回的 close 和 change；若为空则显示“暂无信息”
+						todayPriceEl.textContent = (j.close !== null && j.close !== undefined) ? j.close : '暂无信息';
+						priceDiffEl.textContent = (j.change !== null && j.change !== undefined) ? j.change : '暂无信息';
+						// 颜色标识（正红、负绿）
+						if(typeof j.change === 'number'){
+							priceDiffEl.style.color = j.change>0 ? '#d9534f' : (j.change<0? '#29a673' : '#333');
+						}
+					} else {
+						todayPriceEl.textContent = '暂无信息';
+						priceDiffEl.textContent = '暂无信息';
+					}
+				}catch(err){
+					console.warn('fetchStockInfoFromServer 请求失败', err);
+					// 保守降级为暂无信息
+					todayPriceEl.textContent = '暂无信息';
+					priceDiffEl.textContent = '暂无信息';
+				}
+			}
 
 		// 简单 debounce
 		function debounce(fn, ms){
@@ -640,10 +679,8 @@ http://localhost:8000/html/invest.html
 
 			// 同步向后端请求更详细的实时信息（可触发 buy_stock.py）
 			if(codeKey){
-				// 有些页面没有实现 fetchStockInfoFromServer，直接调用会抛出 ReferenceError，
-				// 导致上层事件处理器中断（例如 tryMatchCode/tryMatchName 无法继续执行），
-				// 从而出现“未收录”提示未被清除的问题。
-				if(typeof fetchStockInfoFromServer === 'function'){
+				// 仅当三个输入框（代码、名称、日期）都有值时，才调用后端获取实时（单日）数据
+				if(typeof fetchStockInfoFromServer === 'function' && inputCode.value.trim() && inputName.value.trim() && datePickerEl && datePickerEl.value){
 					try{
 						fetchStockInfoFromServer(codeKey);
 					}catch(err){
@@ -683,6 +720,7 @@ http://localhost:8000/html/invest.html
 						}
 					} else {
 						// 未找到则提示并清空名称输入
+						notFoundEl.textContent = '该股票尚未收录，请更换代码尝试';
 						notFoundEl.style.display = 'block';
 						infoBox.style.display = 'none';
 						if(buyControlsEl) buyControlsEl.style.display = 'none';
@@ -723,6 +761,7 @@ http://localhost:8000/html/invest.html
 						}
 					} else {
 						// 未找到则提示并清空代码输入
+						notFoundEl.textContent = '该股票尚未收录，请更换名称尝试';
 						notFoundEl.style.display = 'block';
 						infoBox.style.display = 'none';
 						if(buyControlsEl) buyControlsEl.style.display = 'none';

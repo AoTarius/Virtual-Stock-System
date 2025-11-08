@@ -3,6 +3,8 @@ from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from pathlib import Path
 import csv
+import importlib.util
+import traceback
 
 # 简单缓存：模块级字典，避免每次请求都读文件
 _STOCK_MAP_BY_CODE = None
@@ -95,3 +97,53 @@ def stock_csv(request):
         return HttpResponse(content, content_type='text/csv; charset=utf-8')
     except Exception as e:
         return HttpResponse('Error reading CSV: %s' % e, status=500)
+
+
+def stock_info(request):
+    """API: GET ?date=YYYYMMDD&code=000001.SZ
+    Calls StockOperations.get_stock1(date, code) and returns JSON {found: true, close: x, change: y}
+    """
+    date = request.GET.get('date')
+    code = request.GET.get('code')
+    if not date or not code:
+        return JsonResponse({'found': False, 'error': 'missing parameters'})
+
+    # load StockOperations.py dynamically from templates/scripts/py
+    try:
+        base = Path(settings.BASE_DIR)
+        so_path = base / 'templates' / 'scripts' / 'py' / 'StockOperations.py'
+        if not so_path.exists():
+            return JsonResponse({'found': False, 'error': 'StockOperations.py not found'})
+        spec = importlib.util.spec_from_file_location('StockOperations', str(so_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        # call function
+        df = mod.get_stock1(date, code)
+        if df is None:
+            return JsonResponse({'found': False})
+        # dataframe-like check
+        try:
+            if hasattr(df, 'empty') and df.empty:
+                return JsonResponse({'found': False})
+            # try to get first row
+            row = df.iloc[0]
+            close = row['close'] if 'close' in row else (row.get('close') if hasattr(row, 'get') else None)
+            change = row['change'] if 'change' in row else (row.get('change') if hasattr(row, 'get') else None)
+            # convert to float if possible
+            try:
+                close_val = float(close)
+            except Exception:
+                close_val = None
+            try:
+                change_val = float(change)
+            except Exception:
+                change_val = None
+            if close_val is None and change_val is None:
+                return JsonResponse({'found': False})
+            return JsonResponse({'found': True, 'close': close_val, 'change': change_val})
+        except Exception:
+            traceback.print_exc()
+            return JsonResponse({'found': False, 'error': 'unable to parse data'})
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({'found': False, 'error': str(e)})
