@@ -359,8 +359,9 @@ http://localhost:8000/html/invest.html
 	<script>
 	// 小型 CSV 解析 + 前端查询逻辑
 	(function(){
-			// 使用后端提供的稳定 URL 来获取 CSV，避免相对路径在模板路由下导致 404
-			const csvPath = '/stock-csv/';
+			// 使用 Django 反向 URL，以便在 routes 被包含到任意前缀下仍能正确访问
+			const csvPath = "{% url 'stock_csv' %}";
+			const lookupPath = "{% url 'stock_lookup' %}";
 
 		// 简单 debounce
 		function debounce(fn, ms){
@@ -450,6 +451,15 @@ http://localhost:8000/html/invest.html
 		const datePickerEl = document.getElementById('date-picker');
 		const dateBtn = document.getElementById('date-btn');
 
+		// 辅助：判断三个输入框是否为“部分填写”状态（即 0 < 填写数 < 3）
+		function isPartiallyFilled(){
+			const hasCode = inputCode && inputCode.value.trim() !== '';
+			const hasName = inputName && inputName.value.trim() !== '';
+			const hasDate = datePickerEl && !!datePickerEl.value;
+			const count = (hasCode?1:0) + (hasName?1:0) + (hasDate?1:0);
+			return count > 0 && count < 3;
+		}
+
 		let indexedByCode = {};
 		let indexedByName = {};
 		let groupedByCode = {};
@@ -471,6 +481,9 @@ http://localhost:8000/html/invest.html
 				const nameCol = findHeader(headers, nameCandidates) || headers[1] || null;
 				const dateCol = findHeader(headers, dateCandidates) || null;
 				const closeCol = findHeader(headers, closeCandidates) || null;
+				// 额外识别 market 列（交易所后缀）
+				const marketCandidates = ['market','交易所','exch','exchange'];
+				const marketCol = findHeader(headers, marketCandidates) || null;
 
 				indexedByCode = {};
 				indexedByName = {};
@@ -479,17 +492,21 @@ http://localhost:8000/html/invest.html
 				data.forEach(row=>{
 					const code = String(row[codeCol] || '').trim();
 					const name = nameCol ? String(row[nameCol] || '').trim() : '';
+					const market = marketCol ? String(row[marketCol] || '').trim() : '';
 					if(!code && !name) return;
 					const keyCode = code.toLowerCase();
 					const keyName = name.toLowerCase();
 
 					// store first-seen as metadata if not present
 					if(code){
-						if(!indexedByCode[keyCode]) indexedByCode[keyCode] = {code, name, rows: []};
+						if(!indexedByCode[keyCode]) indexedByCode[keyCode] = {code, name, market: market || '', rows: []};
+						// 如果后续行包含更完整的信息（如 market），优先保留非空 market
+						if(market && !indexedByCode[keyCode].market) indexedByCode[keyCode].market = market;
 						indexedByCode[keyCode].rows.push(row);
 					}
 					if(name){
-						if(!indexedByName[keyName]) indexedByName[keyName] = {code, name, rows: []};
+						if(!indexedByName[keyName]) indexedByName[keyName] = {code, name, market: market || '', rows: []};
+						if(market && !indexedByName[keyName].market) indexedByName[keyName].market = market;
 						indexedByName[keyName].rows.push(row);
 					}
 					// group by code
@@ -530,9 +547,13 @@ http://localhost:8000/html/invest.html
 					notFoundEl.style.display = 'none';
 					showInfoForCode(k);
 				} else {
-					// 提示用户先选择日期
-					notFoundEl.textContent = '请先选择日期以查看详细内容';
-					notFoundEl.style.display = 'block';
+					// 只有当三个输入框处于部分填写（有内容但不全）时，才提示“请先选择日期”
+					if(isPartiallyFilled()){
+						notFoundEl.textContent = '请先选择日期以查看详细内容';
+						notFoundEl.style.display = 'block';
+					} else {
+						notFoundEl.style.display = 'none';
+					}
 					infoBox.style.display = 'none';
 					if(buyControlsEl) buyControlsEl.style.display = 'none';
 				}
@@ -558,8 +579,13 @@ http://localhost:8000/html/invest.html
 					notFoundEl.style.display = 'none';
 					showInfoForCode(codeKey);
 				} else {
-					notFoundEl.textContent = '请先选择日期以查看详细内容';
-					notFoundEl.style.display = 'block';
+					// 只有当三个输入框处于部分填写（有内容但不全）时，才提示“请先选择日期”
+					if(isPartiallyFilled()){
+						notFoundEl.textContent = '请先选择日期以查看详细内容';
+						notFoundEl.style.display = 'block';
+					} else {
+						notFoundEl.style.display = 'none';
+					}
 					infoBox.style.display = 'none';
 					if(buyControlsEl) buyControlsEl.style.display = 'none';
 				}
@@ -575,7 +601,14 @@ http://localhost:8000/html/invest.html
 			infoBox.style.display = 'block';
 			// 显示购入控件（只有在成功展示股票信息时）
 			if(buyControlsEl) buyControlsEl.style.display = 'flex';
-			stockMeta.textContent = (indexedByCode[codeKey] ? (indexedByCode[codeKey].code + ' / ' + (indexedByCode[codeKey].name||'—')) : '—');
+			if(indexedByCode[codeKey]){
+				// 使用 CSV 中的原始 code 字段并紧凑显示为 code.market/name（例如 000001.SZ/平安银行）
+				const meta = indexedByCode[codeKey];
+				const marketPart = meta.market ? `.${meta.market}` : '';
+				stockMeta.textContent = `${meta.code}${marketPart}/${meta.name || '—'}`;
+			} else {
+				stockMeta.textContent = '—';
+			}
 
 			// 尝试计算今日与昨日价格
 			if(cols.dateCol && cols.closeCol && group.length>0){
@@ -624,10 +657,12 @@ http://localhost:8000/html/invest.html
 		const tryMatchCode = debounce(function(){
 			const v = inputCode.value.trim();
 			if(!v){
-				// 若代码为空，隐藏提示与信息，但不改变名称（用户可能正在切换）
+				// 若代码为空：隐藏提示与信息，并同时清空名称输入，保证两者同步清空
 				notFoundEl.style.display = 'none';
 				infoBox.style.display = 'none';
 				if(buyControlsEl) buyControlsEl.style.display = 'none';
+				// 同步清空名称，满足“二者无论谁被清空了，另一个也要跟着清空”的需求
+				if(inputName) inputName.value = '';
 				return;
 			}
 			const found = showStockByCode(v);
@@ -636,7 +671,7 @@ http://localhost:8000/html/invest.html
 				return;
 			}
 			// 如果本地未命中，尝试请求后端 API
-			fetch(`/stock-lookup/?code=${encodeURIComponent(v)}`)
+				fetch(`${lookupPath}?code=${encodeURIComponent(v)}`)
 				.then(r=>r.json())
 				.then(j=>{
 					if(j && j.found){
@@ -676,7 +711,7 @@ http://localhost:8000/html/invest.html
 				return;
 			}
 			// 本地未命中，尝试后端模糊/精确查询
-			fetch(`/stock-lookup/?name=${encodeURIComponent(v)}`)
+				fetch(`${lookupPath}?name=${encodeURIComponent(v)}`)
 				.then(r=>r.json())
 				.then(j=>{
 					if(j && j.found){

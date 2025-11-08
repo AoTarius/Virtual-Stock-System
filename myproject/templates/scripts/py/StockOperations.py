@@ -1,6 +1,31 @@
 # 此文件设计基本操作功能
 
 import sqlite3
+import tushare as ts
+
+# 获取从 30 天前到 end_date 的股票数据
+def get_stock30(end_date, code):
+    token = 'fadb2289dc9b029eb4d43c567f11830de2ccddf28193dc4f8e9d864c'
+    pro = ts.pro_api(token)
+    try:
+        df = pro.daily(ts_code=code, end_date=end_date, start_date=None, limit=30, fields='ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount')
+        print(df)
+        return df
+    except Exception as e:
+        print(f"Error occurred: {e}")
+    return None
+
+# 获取当天的股票信息
+def get_stock_today(code):
+    token = 'fadb2289dc9b029eb4d43c567f11830de2ccddf28193dc4f8e9d864c'
+    pro = ts.pro_api(token)
+    try:
+        df = pro.daily(ts_code=code, end_date=None, start_date=None, limit=1, fields='ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount')
+        print(df)
+        return df
+    except Exception as e:
+        print(f"Error occurred: {e}")
+    return None
 
 # 用户购买股票，返回bool值表示是否购买成功
 def buy_stock(user_id, stockID, time, piles, unitPrice):
@@ -88,4 +113,6 @@ if __name__ == "__main__":
     import datetime
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     # deposit_funds(1, 1000)  # 用户1充值1000
-    buy_stock(1, '000001', current_time, 10, 5.0)  # 用户1购买股票000001，10股，单价5.0
+    # buy_stock(1, '000001', current_time, 10, 5.0)  # 用户1购买股票000001，10股，单价5.0
+    # get_stock30('20240620', '000001.SZ')  # 获取股票600519在2024-06-20的30天数据
+    get_stock_today('000001.SZ')  # 获取股票600519的当天数据
