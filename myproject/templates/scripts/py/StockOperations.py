@@ -68,6 +68,17 @@ def buy_stock(user_id, stockID, time, piles, unitPrice):
 
         conn.commit()
         conn.close()
+        # 添加用户总投入金额
+        user_db_path = 'myproject/templates/db/user.db'
+        conn = sqlite3.connect(user_db_path)
+        conn.execute('''
+            UPDATE Users
+            SET total_input = total_input + ?
+            WHERE user_id = ?
+        ''', (cost, user_id))
+        conn.commit()
+        conn.close()
+
         print(f"用户：{user_id}股票购买完成")
         return True
 
@@ -112,7 +123,7 @@ if __name__ == "__main__":
     # 示例操作
     import datetime
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # deposit_funds(1, 1000)  # 用户1充值1000
-    # buy_stock(1, '000001', current_time, 10, 5.0)  # 用户1购买股票000001，10股，单价5.0
-    # get_stock30('20240620', '000001.SZ')  # 获取股票600519在2024-06-20的30天数据
-    get_stock1('20240620', '000001.SZ')  # 获取股票600519在2024-06-20的当天数据
+    deposit_funds(1, 1000)  # 用户1充值1000
+    buy_stock(1, '000001.SZ', current_time, 10, 5.0)  # 用户1购买股票000001.SZ，10股，单价5.0
+    # get_stock30('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的30天数据
+    # get_stock1('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的当天数据
