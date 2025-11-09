@@ -54,6 +54,6 @@ def insert_default_stock(db_path, user_id, stockID='000001.SZ', piles=10, unitPr
     print("默认股票插入完成")
 
 if __name__ == "__main__":
-    # initialize_userStocks_db('myproject/templates/db/userStocks.db') # 初始化数据库
-    # reset_user_stocks('myproject/templates/db/userStocks.db', 1) # 重置用户1的股票记录
-    insert_default_stock('myproject/templates/db/userStocks.db', 1) # 插入默认股票记录
+    initialize_userStocks_db('myproject/templates/db/userStocks.db') # 初始化数据库
+    reset_user_stocks('myproject/templates/db/userStocks.db', 1) # 重置用户1的股票记录
+    # insert_default_stock('myproject/templates/db/userStocks.db', 1) # 插入默认股票记录

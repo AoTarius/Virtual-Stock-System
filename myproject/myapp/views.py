@@ -278,3 +278,57 @@ def user_total_value(request):
     except Exception as e:
         traceback.print_exc()
         return JsonResponse({'found': False, 'error': str(e)})
+
+
+def buy_stock(request):
+    """API: POST JSON {code, date(YYYY-MM-DD or YYYYMMDD), piles, user_id?}
+    Calls StockOperations.buy_stock_on_date and returns JSON {success: bool, message: str, details: {...}}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'})
+    try:
+        import json
+        body = None
+        try:
+            body = json.loads(request.body.decode('utf-8')) if request.body else {}
+        except Exception:
+            body = request.POST
+
+        code = (body.get('code') or request.POST.get('code') or '').strip()
+        date_raw = (body.get('date') or request.POST.get('date') or '').strip()
+        piles = body.get('piles') or request.POST.get('piles')
+        user_id = body.get('user_id') or request.POST.get('user_id') or request.session.get('user_id')
+
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'missing user_id'})
+        if not code:
+            return JsonResponse({'success': False, 'error': 'missing code'})
+        if not piles:
+            return JsonResponse({'success': False, 'error': 'missing piles'})
+        try:
+            piles = int(piles)
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'invalid piles'})
+
+        # normalize date to YYYYMMDD
+        date_param = date_raw.replace('-', '') if date_raw else None
+        if not date_param or len(date_param) != 8:
+            return JsonResponse({'success': False, 'error': 'invalid date, expected YYYY-MM-DD or YYYYMMDD'})
+
+        # load StockOperations
+        base = Path(settings.BASE_DIR)
+        so_path = base / 'templates' / 'scripts' / 'py' / 'StockOperations.py'
+        if not so_path.exists():
+            return JsonResponse({'success': False, 'error': 'StockOperations.py not found'})
+        spec = importlib.util.spec_from_file_location('StockOperations', str(so_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        if not hasattr(mod, 'buy_stock_on_date'):
+            return JsonResponse({'success': False, 'error': 'buy_stock_on_date not implemented in StockOperations'})
+
+        ok, msg, details = mod.buy_stock_on_date(int(user_id), code, date_param, piles)
+        return JsonResponse({'success': ok, 'message': msg, 'details': details})
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)})

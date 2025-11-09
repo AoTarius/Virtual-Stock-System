@@ -252,11 +252,18 @@
 			font-weight:700;
 			color:#222
 		}
-		.metric-value.positive{
-			color:#16a34a
+		/* 统一正/负样式，适用于持仓卡片（.metric-value）和顶部三数字（.num-value / #total_profit_val） */
+		.metric-value.positive,
+		.num-value.positive,
+		#total_profit_val.positive{
+			/* 盈利（positive）显示为红色 */
+			color:#ef4444;
 		}
-		.metric-value.negative{
-			color:#ef4444
+		.metric-value.negative,
+		.num-value.negative,
+		#total_profit_val.negative{
+			/* 亏损（negative）显示为绿色 */
+			color:#16a34a;
 		}
 
 		@media (max-width:700px){
@@ -460,7 +467,17 @@
 						const priceStrong = document.createElement('strong');
 						priceStrong.textContent = (h.close !== null && h.close !== undefined) ? ('¥' + fmtNumber(h.close)) : '—';
 						priceSpan.innerHTML = '今日股价&nbsp;'; priceSpan.appendChild(priceStrong);
-						meta.appendChild(codeSpan); meta.appendChild(priceSpan);
+						meta.appendChild(codeSpan);
+						// purchase time (from UserStocks.last_purchase_time)
+						if(h.purchase_time){
+							const timeSpan = document.createElement('span');
+							timeSpan.className = 'purchase-time';
+							timeSpan.style.marginLeft = '8px';
+							timeSpan.style.color = '#999';
+							timeSpan.textContent = '购入时间 ' + String(h.purchase_time);
+							meta.appendChild(timeSpan);
+						}
+						meta.appendChild(priceSpan);
 						left.appendChild(title); left.appendChild(meta);
 						const right = document.createElement('div'); right.className='stock-right';
 						// piles

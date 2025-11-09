@@ -25,12 +25,155 @@ def get_stock1(date, code):
     token = 'fadb2289dc9b029eb4d43c567f11830de2ccddf28193dc4f8e9d864c'
     pro = ts.pro_api(token)
     try:
-        df = pro.daily(ts_code=code, end_date=date, start_date=date, limit=1, fields='ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount')
-        print(df)
-        return df
+        # Try several variants to improve hit-rate on tushare:
+        # prefer exact code, then try trade_date param, then try adding common suffixes (.SZ/.SH),
+        # and try upper/lower case variants.
+        cand_codes = []
+        c = str(code or '').strip()
+        if not c:
+            return None
+        cand_codes.append(c)
+        # if provided code includes dot-suffix, also try lower/upper variants and short code
+        if '.' in c:
+            parts = c.split('.')
+            cand_codes.append(parts[0])
+            cand_codes.append(parts[0] + '.' + parts[1].upper())
+            cand_codes.append(parts[0] + '.' + parts[1].lower())
+        else:
+            # try common exchanges
+            cand_codes.append(c + '.SZ')
+            cand_codes.append(c + '.SH')
+
+        # dedupe while preserving order
+        seen = set(); codes = []
+        for cc in cand_codes:
+            key = cc.lower()
+            if key not in seen:
+                seen.add(key); codes.append(cc)
+
+        last_exc = None
+        for cc in codes:
+            try:
+                # first try: use trade_date param if supported
+                try:
+                    df = pro.daily(ts_code=cc, trade_date=date, fields='ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount')
+                except TypeError:
+                    # older pro.daily signature may not accept trade_date keyword; fall back
+                    df = None
+                if df is None or (hasattr(df, 'empty') and df.empty):
+                    # second try: use start_date/end_date
+                    df = pro.daily(ts_code=cc, end_date=date, start_date=date, limit=1, fields='ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount')
+                if df is not None and not (hasattr(df, 'empty') and df.empty):
+                    print(df)
+                    return df
+            except Exception as e:
+                # record and continue to next candidate
+                last_exc = e
+                continue
+        # if all attempts failed, raise last exception if any, else return empty dataframe
+        if last_exc:
+            print(f"get_stock1: all attempts failed, last error: {last_exc}")
+        return None
     except Exception as e:
         print(f"Error occurred: {e}")
     return None
+
+
+def buy_stock_on_date(user_id, stockID, date_yyyymmdd, piles):
+    """
+    在指定日期使用当日收盘价作为单价，替用户下单购买若干股。
+    参数：
+      user_id: int
+      stockID: str (例如 '000001.SZ' 或 '000001')
+      date_yyyymmdd: str, 格式 'YYYYMMDD'，用于从 tushare 获取当日收盘价
+      piles: int
+    返回：(success: bool, message: str, details: dict)
+    details 可能包含 cost, unitPrice, remaining_funds 等
+    """
+    try:
+        # 尝试获取当日收盘价
+        df = get_stock1(date_yyyymmdd, stockID)
+        if df is None or (hasattr(df, 'empty') and df.empty):
+            return False, '无法获取当日股价', {}
+        row = df.iloc[0]
+        close = None
+        try:
+            close = float(row.get('close', row['close']))
+        except Exception:
+            try:
+                close = float(row['close'])
+            except Exception:
+                close = None
+        if close is None:
+            return False, '当日收盘价不可用', {}
+
+        unitPrice = close
+        cost = float(piles) * float(unitPrice)
+
+        # 规范化要写入数据库的 stockID：
+        # 优先使用 tushare 返回的 ts_code（通常带后缀），否则如果传入的 stockID 没有后缀则默认补上 .SZ
+        stored_stockID = stockID
+        try:
+            if df is not None and not (hasattr(df, 'empty') and df.empty):
+                # tushare 的 daily 返回通常含有 ts_code 列（例如 '000001.SZ'）
+                if 'ts_code' in df.columns:
+                    ts_code_val = df.iloc[0].get('ts_code')
+                    if ts_code_val:
+                        stored_stockID = str(ts_code_val)
+        except Exception:
+            # ignore and fall back to heuristics below
+            pass
+
+        if '.' not in stored_stockID:
+            # 若仍然没有后缀，默认添加 .SZ（这是常见的简易策略，若需要更精确可改为检测或传入完整代码）
+            stored_stockID = f"{stored_stockID}.SZ"
+
+        # 检查用户余额
+        user_db_path = _DB_DIR / 'user.db'
+        conn = sqlite3.connect(str(user_db_path))
+        cur = conn.execute('SELECT funds FROM Users WHERE user_id = ?', (user_id,))
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return False, '用户不存在', {}
+        funds = float(row[0])
+        if funds < cost:
+            return False, '余额不足', {'required': cost, 'funds': funds}
+
+        # 将date_yyyymmdd转化为yyyy-mm-dd
+        op_time = f"{date_yyyymmdd[0:4]}-{date_yyyymmdd[4:6]}-{date_yyyymmdd[6:8]} 15:00:00"
+
+        # 扣款并更新 total_input and insert into UserStocks
+        # 使用 existing helper deduct_funds (会更新 funds)
+        deduct_funds(user_id, cost)
+
+        stock_db_path = _DB_DIR / 'userStocks.db'
+        sconn = sqlite3.connect(str(stock_db_path))
+        sconn.execute('''
+            INSERT OR IGNORE INTO UserStocks (user_id, stockID, time, operation, piles, unitPrice, cost)
+            VALUES (?, ?, ?, '购买', ?, ?, ?)
+        ''', (user_id, stored_stockID, op_time, piles, unitPrice, cost))
+        sconn.commit()
+        sconn.close()
+
+        uconn = sqlite3.connect(str(user_db_path))
+        uconn.execute('UPDATE Users SET total_input = total_input + ? WHERE user_id = ?', (cost, user_id))
+        uconn.commit()
+        # 查询剩余资金和总投入
+        cur = uconn.execute('SELECT funds, total_input FROM Users WHERE user_id = ?', (user_id,))
+        new_row = cur.fetchone()
+        remaining = float(new_row[0]) if new_row else None
+        new_total_input = float(new_row[1]) if new_row and new_row[1] is not None else None
+        # round to 2 decimal places for frontend display
+        if remaining is not None:
+            remaining = round(remaining, 2)
+        if new_total_input is not None:
+            new_total_input = round(new_total_input, 2)
+        uconn.close()
+
+        return True, '购买成功', {'cost': cost, 'unitPrice': unitPrice, 'remaining_funds': remaining, 'total_input': new_total_input}
+    except Exception as e:
+        return False, str(e), {}
 
 # 用户购买股票，返回bool值表示是否购买成功
 def buy_stock(user_id, stockID, time, piles, unitPrice):
@@ -61,11 +204,11 @@ def buy_stock(user_id, stockID, time, piles, unitPrice):
         user_conn.close()
         return False
     else:
-       # 调用函数进行扣款
+        # 调用函数进行扣款（会更新 Users.funds）
         deduct_funds(user_id, cost)
-        # 添加股票记录
-        stock_db_path = 'myproject/templates/db/userStocks.db'
-        conn = sqlite3.connect(stock_db_path)
+        # 添加股票记录到 userStocks.db
+        stock_db_path = _DB_DIR / 'userStocks.db'
+        conn = sqlite3.connect(str(stock_db_path))
         conn.execute('''
             INSERT OR IGNORE INTO UserStocks (user_id, stockID, time, operation, piles, unitPrice, cost)
             VALUES (?, ?, ?, '购买', ?, ?, ?)
@@ -74,8 +217,8 @@ def buy_stock(user_id, stockID, time, piles, unitPrice):
         conn.commit()
         conn.close()
         # 添加用户总投入金额
-        user_db_path = 'myproject/templates/db/user.db'
-        conn = sqlite3.connect(user_db_path)
+        user_db_path = _DB_DIR / 'user.db'
+        conn = sqlite3.connect(str(user_db_path))
         conn.execute('''
             UPDATE Users
             SET total_input = total_input + ?
@@ -209,7 +352,7 @@ def get_user_holdings(user_id, date):
     stock_db_path = _DB_DIR / 'userStocks.db'
     conn = sqlite3.connect(str(stock_db_path))
     cursor = conn.execute('''
-        SELECT stockID, SUM(piles) as piles_sum, SUM(cost) as cost_sum
+        SELECT stockID, SUM(piles) as piles_sum, SUM(cost) as cost_sum, MAX(time) as last_purchase_time
         FROM UserStocks
         WHERE user_id = ? AND operation = '购买'
         GROUP BY stockID
@@ -259,7 +402,7 @@ def get_user_holdings(user_id, date):
         code_to_name = {}
 
     holdings = []
-    for stockID, piles_sum, cost_sum in rows:
+    for stockID, piles_sum, cost_sum, last_purchase_time in rows:
         try:
             piles_sum = int(piles_sum) if piles_sum is not None else 0
         except Exception:
@@ -309,6 +452,7 @@ def get_user_holdings(user_id, date):
             'piles': piles_sum,
             'cost': cost_sum,
             'profit': profit,
+            'purchase_time': last_purchase_time,
         })
 
     return holdings
@@ -317,8 +461,8 @@ if __name__ == "__main__":
     # 示例操作
     import datetime
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # deposit_funds(1, 1000)  # 用户1充值1000
-    buy_stock(1, '000002.SZ', current_time, 15, 5.7)  # 用户1购买股票
+    deposit_funds(1, 1000)  # 用户1充值1000
+    # buy_stock(1, '000002.SZ', current_time, 15, 5.7)  # 用户1购买股票
     # get_stock30('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的30天数据
     # get_stock1('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的当天数据
     # total_input, total_assets = get_user_financials(1)

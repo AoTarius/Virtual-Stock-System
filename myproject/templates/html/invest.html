@@ -284,12 +284,12 @@ http://localhost:8000/html/invest.html
 		<div class="stats-row" aria-label="关键数字">
 			<div class="num-block">
 				<div class="num-title">投入资产</div>
-				<div class="num-value">{{ total_input|default:"0" }}</div>
+				<div class="num-value">{{ total_input|default:0|floatformat:2 }}</div>
 			</div>
 			<div class="sep" aria-hidden="true"></div>
 			<div class="num-block">
 				<div class="num-title">剩余资产</div>
-				<div class="num-value">{{ total_assets|default:"0" }}</div>
+				<div class="num-value">{{ total_assets|default:0|floatformat:2 }}</div>
 			</div>
 		</div>
         <div class="sep-line" aria-hidden="true"></div>
@@ -879,16 +879,57 @@ http://localhost:8000/html/invest.html
 		const btnBuy = document.getElementById('btn-buy');
 		const btnBuyCancel = document.getElementById('btn-buy-cancel');
 
-		btnBuy.addEventListener('click', function(){
+		// helper: format number to localized currency-like string (max 2 decimals)
+		function fmtNumber(n){
+			if(n === null || n === undefined) return '-';
+			const num = Number(n);
+			if(isNaN(num)) return '-';
+			return num.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
+		}
+
+		btnBuy.addEventListener('click', async function(){
 			const v = parseInt(buyCountEl.value, 10);
 			if(!v || v <= 0){
 				alert('请输入有效的购入股数（大于 0）');
 				return;
 			}
-			// 简单模拟：提示已提交（真实场景应调用后端接口）
-			alert(`已提交购买：${v} 股（模拟）`);
-			// 可选：清空输入，隐藏信息等
-			buyCountEl.value = '';
+			// 构造请求参数：code, date (YYYY-MM-DD), piles
+			const code = inputCode.value.trim();
+			const dateIso = datePickerEl && datePickerEl.value ? datePickerEl.value : '';
+			if(!code){ alert('请先输入或选择一个股票代码'); return; }
+			if(!dateIso){ alert('请先选择交易日期'); return; }
+			const buyUrl = "{% url 'myapp:buy_stock' %}";
+			try{
+				const payload = { code: code, date: dateIso, piles: v };
+				const resp = await fetch(buyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+				const j = await resp.json();
+				if(!resp.ok){ alert('请求失败'); return; }
+				if(j.success){
+					alert('购买成功：' + (j.details && j.details.cost ? ('共支付 ' + fmtNumber(j.details.cost)) : ''));
+					// 清空输入
+					buyCountEl.value = '';
+					// 若返回 remaining_funds 或 total_input，则尝试更新页面显示（如果存在）
+					try{
+						if(j.details){
+							// 页面上数值位置在模板渲染中，寻找 .num-block 中的两个值：0=投入资产, 1=剩余资产
+							const assetsEls = document.querySelectorAll('.num-block .num-value');
+							if(assetsEls && assetsEls.length>=2){
+								if(j.details.total_input !== undefined){
+									assetsEls[0].textContent = fmtNumber(j.details.total_input);
+								}
+								if(j.details.remaining_funds !== undefined){
+									assetsEls[1].textContent = fmtNumber(j.details.remaining_funds);
+								}
+							}
+						}
+					}catch(_){ }
+				}else{
+					alert('购买失败：' + (j.message || j.error || '未知错误'));
+				}
+			}catch(err){
+				console.warn('buy request failed', err);
+				alert('购买请求失败，请稍后重试');
+			}
 		});
 
 		btnBuyCancel.addEventListener('click', function(){

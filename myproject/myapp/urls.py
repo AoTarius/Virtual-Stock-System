@@ -9,6 +9,7 @@ urlpatterns = [
     path('stock-info/', views.stock_info, name='stock_info'),
     path('stock-csv/', views.stock_csv, name='stock_csv'),
     path('user-total-value/', views.user_total_value, name='user_total_value'),
+    path('buy-stock/', views.buy_stock, name='buy_stock'),
     path('record/', views.record, name='record'),
     path('overview/', views.overview, name='overview'),
 ]
