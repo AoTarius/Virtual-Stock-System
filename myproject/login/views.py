@@ -11,8 +11,7 @@ def loginview(request):
 
         # 使用原生 SQL 查询用户
         with connection.cursor() as cursor:
-            #user找不到
-            cursor.execute("SELECT password FROM user WHERE username = %s", [_username])
+            cursor.execute("SELECT password FROM Users WHERE username = %s", [_username])
             user = cursor.fetchone()
 
         if user:
