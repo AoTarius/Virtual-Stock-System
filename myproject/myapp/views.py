@@ -49,7 +49,72 @@ def overview(request):
 def invest(request):
     user_id = request.session.get('user_id')
     username = request.session.get('username')
-    return render(request, 'html/invest.html', {'user_id': user_id, 'username': username})
+    # 尝试动态加载 StockOperations.py 并获取用户财务数据（total_input, total_assets）
+    total_input = None
+    total_assets = None
+    if user_id is not None:
+        try:
+            base = Path(settings.BASE_DIR)
+            so_path = base / 'templates' / 'scripts' / 'py' / 'StockOperations.py'
+            if so_path.exists():
+                spec = importlib.util.spec_from_file_location('StockOperations', str(so_path))
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                # 调用 get_user_financials，返回 (total_input, total_assets)
+                try:
+                    ti, ta = mod.get_user_financials(user_id)
+                    total_input = ti if ti is not None else None
+                    total_assets = ta if ta is not None else None
+                except Exception:
+                    # 保守处理：如果调用失败，保持 None
+                    total_input = None
+                    total_assets = None
+        except Exception:
+            # 任何加载/执行错误都不要抛出，继续渲染页面但不显示数值
+            total_input = None
+            total_assets = None
+
+    # 回退方案：若上述方式未能获得数据，则直接访问本地 sqlite 数据库（更可靠，避免 StockOperations 中的相对路径问题）
+    if (total_input is None or total_assets is None) and user_id is not None:
+        try:
+            import sqlite3
+            base = Path(settings.BASE_DIR)
+            # 常见位置：templates/db/user.db
+            db_path = base / 'templates' / 'db' / 'user.db'
+            if not db_path.exists():
+                # 尝试上一级路径兼容性查找
+                alt = base / '..' / 'templates' / 'db' / 'user.db'
+                if alt.exists():
+                    db_path = alt
+            if db_path.exists():
+                conn = sqlite3.connect(str(db_path))
+                cur = conn.cursor()
+                try:
+                    cur.execute('SELECT total_input, funds FROM Users WHERE user_id = ?', (int(user_id),))
+                    row = cur.fetchone()
+                    if row:
+                        total_input = row[0]
+                        total_assets = row[1]
+                finally:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+        except Exception:
+            # 安全回退，不抛出错误
+            total_input = total_input
+            total_assets = total_assets
+        except Exception:
+            # 任何加载/执行错误都不要抛出，继续渲染页面但不显示数值
+            total_input = None
+            total_assets = None
+
+    return render(request, 'html/invest.html', {
+        'user_id': user_id,
+        'username': username,
+        'total_input': total_input,
+        'total_assets': total_assets,
+    })
 
 def record(request):
     user_id = request.session.get('user_id')

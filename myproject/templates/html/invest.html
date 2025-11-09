@@ -284,12 +284,12 @@ http://localhost:8000/html/invest.html
 		<div class="stats-row" aria-label="关键数字">
 			<div class="num-block">
 				<div class="num-title">投入资产</div>
-				<div class="num-value">128</div>
+				<div class="num-value">{{ total_input|default:"0" }}</div>
 			</div>
 			<div class="sep" aria-hidden="true"></div>
 			<div class="num-block">
 				<div class="num-title">剩余资产</div>
-				<div class="num-value">512</div>
+				<div class="num-value">{{ total_assets|default:"0" }}</div>
 			</div>
 		</div>
         <div class="sep-line" aria-hidden="true"></div>
