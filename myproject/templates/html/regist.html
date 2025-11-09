@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>用户登录</title>
+    <title>用户注册</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+    <link rel="stylesheet" href="{% static 'css/regist.css' %}">
 </head>
 <body>
-    <div class="login-container">
-        <h1 class="login-title">用户登录</h1>
-        <p class="login-subtitle">请输入您的账号和密码</p>
+    <div class="register-container">
+        <h1 class="register-title">用户注册</h1>
+        <p class="register-subtitle">请填写您的个人信息</p>
 
-        <form method="POST" action="{% url 'login:loginview' %}">
-            {% csrf_token %}
+        <form method="POST" action="{% url 'login:registview' %}">
+<!--            {% csrf_token %}-->
 
             <div class="form-group">
                 <label class="form-label">账号</label>
                 <div class="input-container">
-                    <i class="input-icon user-icon"></i>
                     <input type="text" name="username" class="form-input" placeholder="请输入账号" required>
                 </div>
             </div>
@@ -26,21 +25,19 @@
             <div class="form-group">
                 <label class="form-label">密码</label>
                 <div class="input-container">
-                    <i class="input-icon password-icon"></i>
                     <input type="password" name="password" class="form-input" placeholder="请输入密码" required>
                 </div>
             </div>
 
-            <button type="submit" class="login-btn">登录</button>
+            <button type="submit" class="register-btn">注册</button>
 
             {% if error_msg %}
                 <div class="error-message">{{ error_msg }}</div>
             {% endif %}
         </form>
 
-        <div class="register-link">
-            <a href="{% url 'login:registview' %}">没有账户？立即注册</a>
-            
+        <div class="login-link">
+            <a href="{% url 'login:loginview' %}">已有账户？立即登录</a>
         </div>
     </div>
 </body>

@@ -115,3 +115,45 @@ def loginview(request):
 
     # 如果是GET请求，直接渲染登录页面
     return render(request, 'html/login.html')
+
+def registview(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        if not username or not password:
+            error_msg = "账号或密码不能为空。"
+            return render(request, 'html/regist.html', {'error_msg': error_msg})
+        db_path = settings.DATABASES['default']['NAME']
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM Users WHERE username = ?", (username,))
+            if cur.fetchone()[0] > 0:
+                error_msg = "该账号已存在，请使用其他账号。"
+                return render(request, 'html/regist.html', {'error_msg': error_msg})
+
+            cur.execute("SELECT MAX(user_id) FROM Users")
+            max_user_id = cur.fetchone()[0]
+            new_user_id = (max_user_id + 1) if max_user_id is not None else 1
+
+            # 插入新用户数据
+            cur.execute(
+                '''
+                INSERT INTO Users (user_id, username, password, funds)
+                VALUES (?, ?, ?, 0)
+                ''',
+                (new_user_id, username, password)
+            )
+            conn.commit()
+            conn.close()
+
+            # 注册成功后跳转到登录页面
+            return render(request, 'html/login.html', {'success_msg': "注册成功，请登录。"})
+
+        except Exception as e:
+            error_msg = f"注册失败，请稍后重试。错误信息：{str(e)}"
+            return render(request, 'html/regist.html', {'error_msg': error_msg})
+
+    # 如果是GET请求，直接渲染注册页面
+    return render(request, 'html/regist.html')
