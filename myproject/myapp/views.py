@@ -219,3 +219,62 @@ def stock_info(request):
     except Exception as e:
         traceback.print_exc()
         return JsonResponse({'found': False, 'error': str(e)})
+
+
+def user_total_value(request):
+    """API: GET ?date=YYYYMMDD[&user_id=ID]
+    Calls StockOperations.get_user_total_stock_value(user_id, date)
+    Returns JSON:
+    {found: bool, total_input: x, total_stock_value: y, message: str}
+    """
+    date = request.GET.get('date')
+    user_id = request.GET.get('user_id')
+    # Prefer session user_id if not provided
+    if not user_id:
+        user_id = request.session.get('user_id')
+    try:
+        if user_id is None:
+            return JsonResponse({'found': False, 'error': 'missing user_id'})
+        if not date:
+            return JsonResponse({'found': False, 'error': 'missing date'})
+
+        # dynamic load
+        base = Path(settings.BASE_DIR)
+        so_path = base / 'templates' / 'scripts' / 'py' / 'StockOperations.py'
+        if not so_path.exists():
+            return JsonResponse({'found': False, 'error': 'StockOperations.py not found'})
+        spec = importlib.util.spec_from_file_location('StockOperations', str(so_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        # call function
+        try:
+            ok, total_input, total_stock_value = mod.get_user_total_stock_value(int(user_id), date)
+        except Exception as e:
+            traceback.print_exc()
+            return JsonResponse({'found': False, 'error': str(e)})
+
+        # 尝试获取持仓明细（如果 StockOperations 提供该函数）
+        holdings = None
+        try:
+            if hasattr(mod, 'get_user_holdings'):
+                try:
+                    holdings = mod.get_user_holdings(int(user_id), date)
+                except Exception:
+                    holdings = None
+        except Exception:
+            holdings = None
+
+        if not ok:
+            payload = {'found': False, 'total_input': total_input, 'total_stock_value': total_stock_value}
+            if holdings is not None:
+                payload['holdings'] = holdings
+            return JsonResponse(payload)
+
+        payload = {'found': True, 'total_input': total_input, 'total_stock_value': total_stock_value}
+        if holdings is not None:
+            payload['holdings'] = holdings
+        return JsonResponse(payload)
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({'found': False, 'error': str(e)})

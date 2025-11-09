@@ -8,6 +8,7 @@ urlpatterns = [
     path('stock-lookup/', views.stock_lookup, name='stock_lookup'),
     path('stock-info/', views.stock_info, name='stock_info'),
     path('stock-csv/', views.stock_csv, name='stock_csv'),
+    path('user-total-value/', views.user_total_value, name='user_total_value'),
     path('record/', views.record, name='record'),
     path('overview/', views.overview, name='overview'),
 ]

@@ -139,6 +139,21 @@
 			color:#333;
 		}
 
+		/* 与 invest.html 中相同的日期选择器样式（用于欢迎语旁的日期选择） */
+		.date-wrapper{ display:flex; gap:8px; align-items:center; position:relative }
+		.date-wrapper #selected-date{ flex:1 }
+		/* 将原生日历输入透明覆盖在右侧按钮处以触发系统选择器（不改变可见样式） */
+		.hidden-date{
+			position:absolute;
+			right:0;
+			top:0;
+			width:44px; /* 覆盖按钮区域 */
+			height:100%;
+			opacity:0; /* 看不见但可点击 */
+			border:0; background:transparent; cursor:pointer; z-index:3;
+		}
+		#selected-date::placeholder{ color:#bfbfbf }
+
 		/* 三数字行：三段数字，中间用短竖线分隔，并平铺整行 */
 		.stats-row{
 			display:flex;
@@ -288,51 +303,189 @@
 
 	<!-- 页面其余占位内容，仅用于视觉对比 -->
 	<main class="main-content">
-		<h2>欢迎您，{{ username|default:"游客" }}！</h2>
+		<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+			<h2 style="margin:0">欢迎您，{{ username|default:"游客" }}！</h2>
+			<!-- 与 invest.html 中一致的日期选择器（只读显示 + 隐藏的原生 date 输入） -->
+			<div class="date-wrapper" style="min-width:220px; max-width:320px;">
+				<input id="selected-date" type="text" placeholder="yyyy/mm/dd" readonly />
+				<input id="date-picker" type="date" aria-label="选择日期" class="hidden-date" />
+			</div>
+		</div>
 		<!-- 三数字行：三个等宽数字，中间用灰色短竖线分隔，整行平铺 -->
-		<div class="stats-row" aria-label="关键数字">
+		<div class="stats-row" aria-label="关键数字" id="overview-stats-row">
 			<div class="num-block">
 				<div class="num-title">总投入</div>
-				<div class="num-value">128</div>
+				<div class="num-value"><span id="total_input_val">-</span></div>
 			</div>
 			<div class="sep" aria-hidden="true"></div>
 			<div class="num-block">
 				<div class="num-title">总盈亏</div>
-				<div class="num-value">256</div>
+				<div class="num-value"><span id="total_profit_val">-</span></div>
 			</div>
 			<div class="sep" aria-hidden="true"></div>
 			<div class="num-block">
 				<div class="num-title">总市价</div>
-				<div class="num-value">512</div>
+				<div class="num-value"><span id="total_market_val">-</span></div>
 			</div>
 		</div>
-        <div class="sep-line" aria-hidden="true"></div>
-		<!-- 股票展示卡片（非表格） -->
-		<section class="stock-card" aria-label="股票展示">
-			<div class="stock-left">
-				<div class="stock-title">XXX科技有限公司</div>
-				<div class="stock-meta">
-					<span class="stock-code">600000.SH</span>
-					<span class="stock-price">今日股价&nbsp;<strong>¥12.34</strong></span>
-				</div>
-			</div>
-			<div class="stock-right">
-				<div class="metric">
-					<div class="metric-title">已购入股数</div>
-					<div class="metric-value">100</div>
-				</div>
-				<div class="metric">
-					<div class="metric-title">已投资金额</div>
-					<div class="metric-value">¥1,234.00</div>
-				</div>
-				<div class="metric">
-					<div class="metric-title">当前营收</div>
-					<div class="metric-value positive">¥+123.00</div>
-				</div>
-			</div>
-		</section>
+		<div class="sep-line" aria-hidden="true"></div>
+		<!-- 若用户在所选日期没有任何持仓，则展示该提示 -->
+		<div id="no-stocks-msg" style="display:none;color:#c0392b;text-align:center;margin-bottom:12px;">您还未持有任何股票</div>
+		<!-- 持仓列表容器：由 JS 动态渲染持仓卡片 -->
+		<div id="holdings-list"></div>
 	</main>
+</main>
 
+	<script>
+	(function setupOverviewDatePicker(){
+		const selectedDateEl = document.getElementById('selected-date');
+		const datePickerEl = document.getElementById('date-picker');
+		if(!datePickerEl || !selectedDateEl) return;
+		// 设置最大为今天
+		try{
+			const d = new Date();
+			const y = d.getFullYear();
+			const m = String(d.getMonth()+1).padStart(2,'0');
+			const day = String(d.getDate()).padStart(2,'0');
+			const iso = `${y}-${m}-${day}`;
+			datePickerEl.max = iso;
+		}catch(e){ /* ignore */ }
+
+		function fmt(isoDate){
+			if(!isoDate) return '';
+			const dt = new Date(isoDate);
+			if(isNaN(dt)) return isoDate;
+			const Y = dt.getFullYear();
+			const M = String(dt.getMonth()+1).padStart(2,'0');
+			const D = String(dt.getDate()).padStart(2,'0');
+			return `${Y}/${M}/${D}`;
+		}
+
+		datePickerEl.addEventListener('change', function(){
+			// 验证：不能选择周末（与 invest.html 一致）
+			if(this.value){
+				const sel = new Date(this.value);
+				const wd = sel.getDay();
+				if(wd === 0 || wd === 6){
+					// 提示并清空
+					// 这里不展示全局提示，直接恢复为空并 alert 提示用户
+					alert('所选日期为周末，请选择工作日');
+					this.value = '';
+					selectedDateEl.value = '';
+					return;
+				}
+			}
+			selectedDateEl.value = this.value ? fmt(this.value) : '';
+			// 选择日期后请求后端更新用户持仓统计
+			try{
+				const iso = this.value; // YYYY-MM-DD
+				if(iso){
+					const y = iso.slice(0,4);
+					const m = iso.slice(5,7);
+					const d = iso.slice(8,10);
+					const dateParam = `${y}${m}${d}`; // YYYYMMDD
+					fetchTotalValue(dateParam);
+				}
+			}catch(e){ console.warn('fetchTotalValue trigger failed', e); }
+		});
+
+		function openPicker(){
+			try{ if(typeof datePickerEl.showPicker === 'function') datePickerEl.showPicker(); else { datePickerEl.click(); datePickerEl.focus(); } }
+			catch(e){ try{ datePickerEl.click(); datePickerEl.focus(); }catch(_){}}
+		}
+
+		selectedDateEl.addEventListener('click', openPicker);
+
+		// helper: format number to localized currency-like string
+		function fmtNumber(n){
+			if(n === null || n === undefined) return '-';
+			const num = Number(n);
+			if(isNaN(num)) return '-';
+			return num.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
+		}
+
+		const currentUserId = "{{ user_id|default:'' }}";
+		const userTotalUrl = "{% url 'myapp:user_total_value' %}";
+
+		async function fetchTotalValue(dateYYYYMMDD){
+			try{
+				let url = `${userTotalUrl}?date=${encodeURIComponent(dateYYYYMMDD)}`;
+				if(currentUserId) url += `&user_id=${encodeURIComponent(currentUserId)}`;
+				const res = await fetch(url);
+				if(!res.ok){ console.warn('user_total_value API returned', res.status); return; }
+				const j = await res.json();
+				const statsRow = document.getElementById('overview-stats-row');
+				const noMsg = document.getElementById('no-stocks-msg');
+				const inEl = document.getElementById('total_input_val');
+				const profitEl = document.getElementById('total_profit_val');
+				const marketEl = document.getElementById('total_market_val');
+				if(!j){ console.warn('user_total_value empty json'); return; }
+				if(j.found === false){
+					// show message under sep-line
+					if(statsRow) statsRow.style.display = 'none';
+					if(noMsg) noMsg.style.display = 'block';
+					return;
+				}
+				// found true
+				if(statsRow) statsRow.style.display = '';
+				if(noMsg) noMsg.style.display = 'none';
+				const total_input = j.total_input;
+				const total_stock_value = j.total_stock_value;
+				const total_profit = (Number(total_stock_value) - Number(total_input));
+				if(inEl) inEl.textContent = fmtNumber(total_input);
+				if(profitEl){
+					profitEl.textContent = fmtNumber(total_profit);
+					profitEl.classList.remove('positive','negative');
+					if(total_profit>0) profitEl.classList.add('positive');
+					else if(total_profit<0) profitEl.classList.add('negative');
+				}
+				if(marketEl) marketEl.textContent = fmtNumber(total_stock_value);
+				// 渲染持仓列表（若有）
+				const holdingsList = document.getElementById('holdings-list');
+				function renderHoldings(hlist){
+					if(!holdingsList) return;
+					holdingsList.innerHTML = '';
+					if(!hlist || !Array.isArray(hlist) || hlist.length === 0) return;
+					for(const h of hlist){
+						const card = document.createElement('section');
+						card.className = 'stock-card';
+						card.setAttribute('aria-label','股票展示');
+						const left = document.createElement('div'); left.className='stock-left';
+						const title = document.createElement('div'); title.className='stock-title';
+						title.textContent = h.name || '—';
+						const meta = document.createElement('div'); meta.className='stock-meta';
+						const codeSpan = document.createElement('span'); codeSpan.className='stock-code';
+						codeSpan.textContent = h.stockID || '';
+						const priceSpan = document.createElement('span'); priceSpan.className='stock-price';
+						const priceStrong = document.createElement('strong');
+						priceStrong.textContent = (h.close !== null && h.close !== undefined) ? ('¥' + fmtNumber(h.close)) : '—';
+						priceSpan.innerHTML = '今日股价&nbsp;'; priceSpan.appendChild(priceStrong);
+						meta.appendChild(codeSpan); meta.appendChild(priceSpan);
+						left.appendChild(title); left.appendChild(meta);
+						const right = document.createElement('div'); right.className='stock-right';
+						// piles
+						const m1 = document.createElement('div'); m1.className='metric';
+						m1.innerHTML = `<div class="metric-title">已购入股数</div><div class="metric-value">${h.piles ?? '-'}</div>`;
+						// cost
+						const m2 = document.createElement('div'); m2.className='metric';
+						m2.innerHTML = `<div class="metric-title">已投资金额</div><div class="metric-value">¥${fmtNumber(h.cost)}</div>`;
+						// profit
+						const m3 = document.createElement('div'); m3.className='metric';
+						const profitVal = (h.profit !== null && h.profit !== undefined) ? Number(h.profit) : null;
+						const profitClass = profitVal>0 ? 'metric-value positive' : (profitVal<0 ? 'metric-value negative' : 'metric-value');
+						const profitText = profitVal===null ? '-' : `¥${fmtNumber(profitVal>0? ('+'+profitVal): profitVal)}`;
+						m3.innerHTML = `<div class="metric-title">当前营收</div><div class="${profitClass}">${profitText}</div>`;
+						right.appendChild(m1); right.appendChild(m2); right.appendChild(m3);
+						card.appendChild(left); card.appendChild(right);
+						holdingsList.appendChild(card);
+					}
+				}
+				if(j.holdings) renderHoldings(j.holdings);
+			}catch(e){ console.warn('fetchTotalValue failed', e); }
+		}
+
+	})();
+	</script>
 </body>
 </html>
 
