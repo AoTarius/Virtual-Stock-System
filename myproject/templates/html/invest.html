@@ -260,9 +260,9 @@ http://localhost:8000/html/invest.html
 					<span>花梨投资小课堂</span>
 				</a>
 				<nav class="nav" role="navigation" aria-label="主导航">
-					<a href="{% url 'overview' %}">投资概览</a>
+					<a href="{% url 'myapp:overview' %}">投资概览</a>
 					<a class="active" href="#">订阅股票</a>
-					<a href="{% url 'record' %}">买卖记录</a>
+					<a href="{% url 'myapp:record' %}">买卖记录</a>
 					<a href="#">金融分析</a>
 					<a href="#">金融编程</a>
 					<a href="#">更多</a>
@@ -359,10 +359,10 @@ http://localhost:8000/html/invest.html
 	<script>
 	// 小型 CSV 解析 + 前端查询逻辑
 	(function(){
-			// 使用 Django 反向 URL，以便在 routes 被包含到任意前缀下仍能正确访问
-			const csvPath = "{% url 'stock_csv' %}";
-			const lookupPath = "{% url 'stock_lookup' %}";
-			const stockInfoPath = "{% url 'stock_info' %}";
+				// 使用 Django 反向 URL，以便在 routes 被包含到任意前缀下仍能正确访问
+				const csvPath = "{% url 'myapp:stock_csv' %}";
+				const lookupPath = "{% url 'myapp:stock_lookup' %}";
+				const stockInfoPath = "{% url 'myapp:stock_info' %}";
 
 			// 向后端请求指定日期和代码的单日行情（调用 StockOperations.get_stock1）
 			async function fetchStockInfoFromServer(codeKey){

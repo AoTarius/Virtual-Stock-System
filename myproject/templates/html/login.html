@@ -13,13 +13,13 @@
         <p class="login-subtitle">请输入您的账号和密码</p>
 
         <form method="POST" action="{% url 'login:loginview' %}">
-<!--            {% csrf_token %}-->
+            {% csrf_token %}
 
             <div class="form-group">
                 <label class="form-label">账号</label>
                 <div class="input-container">
                     <i class="input-icon user-icon"></i>
-                    <input type="text" name="zhanghao" class="form-input" placeholder="请输入账号" required>
+                    <input type="text" name="username" class="form-input" placeholder="请输入账号" required>
                 </div>
             </div>
 
@@ -27,7 +27,7 @@
                 <label class="form-label">密码</label>
                 <div class="input-container">
                     <i class="input-icon password-icon"></i>
-                    <input type="password" name="mima" class="form-input" placeholder="请输入密码" required>
+                    <input type="password" name="password" class="form-input" placeholder="请输入密码" required>
                 </div>
             </div>
 
