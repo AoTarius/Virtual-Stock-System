@@ -1,4 +1,4 @@
-运行网页方法：在myproject根目录运行`python manage.py runserver`
+运行网页方法：在myproject根目录运行`python manage.py migrate`与`python manage.py runserver`
 
 创建新的html文件需要修改一下路径（根目录是myproject）：
 - `myapp/urls.py`

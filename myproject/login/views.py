@@ -27,10 +27,16 @@ def loginview(request):
             try:
                 conn = sqlite3.connect(db_path)
                 cur = conn.cursor()
-                cur.execute("SELECT password FROM Users WHERE username = ?", (_username,))
+                # 同时获取 user_id, password, username（如果有记录 username）
+                cur.execute("SELECT user_id, password, username FROM Users WHERE username = ?", (_username,))
                 user = cur.fetchone()
             except Exception:
-                user = None
+                # 若表结构不同（没有 username 列），尝试退回到仅取 user_id,password
+                try:
+                    cur.execute("SELECT user_id, password FROM Users WHERE username = ?", (_username,))
+                    user = cur.fetchone()
+                except Exception:
+                    user = None
             finally:
                 try:
                     conn.close()
@@ -40,14 +46,27 @@ def loginview(request):
             # 回退到 Django 的 connection.cursor（极少数情况下）
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT password FROM Users WHERE username = ?", [_username])
+                    cursor.execute("SELECT user_id, password, username FROM Users WHERE username = ?", [_username])
                     user = cursor.fetchone()
             except Exception:
-                user = None
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT user_id, password FROM Users WHERE username = ?", [_username])
+                        user = cursor.fetchone()
+                except Exception:
+                    user = None
 
         if user:
-            # 从数据库中取出的可能是明文密码或哈希值，优先使用 Django 的 check_password 验证哈希
-            stored = user[0]
+            # user 可能为 (user_id, password, username) 或 (user_id, password)
+            if len(user) >= 2:
+                user_id = user[0]
+                stored = user[1]
+                db_username = user[2] if len(user) >= 3 else _username
+            else:
+                # 意外格式，回退
+                user_id = None
+                stored = user[0]
+                db_username = _username
             # 兼容可能的空白或类型问题
             if isinstance(stored, bytes):
                 try:
@@ -79,7 +98,13 @@ def loginview(request):
                 valid = True
 
             if valid:
-                # 登录成功，重定向到 overview（使用 myapp 的命名路由）
+                # 登录成功：把用户信息写入 session，便于后续页面识别当前用户
+                try:
+                    if user_id is not None:
+                        request.session['user_id'] = int(user_id)
+                    request.session['username'] = db_username
+                except Exception:
+                    pass
                 return redirect('myapp:overview')
             else:
                 error_msg = "密码错误，请重试。"

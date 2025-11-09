@@ -41,13 +41,20 @@ def _ensure_stock_indexed():
         _STOCK_MAP_BY_NAME = _STOCK_MAP_BY_NAME or {}
 
 def overview(request):
-    return render(request, 'html/overview.html')
+    # 将 session 中的用户信息传递给模板，便于页面显示当前用户
+    user_id = request.session.get('user_id')
+    username = request.session.get('username')
+    return render(request, 'html/overview.html', {'user_id': user_id, 'username': username})
 
 def invest(request):
-    return render(request, 'html/invest.html')
+    user_id = request.session.get('user_id')
+    username = request.session.get('username')
+    return render(request, 'html/invest.html', {'user_id': user_id, 'username': username})
 
 def record(request):
-    return render(request, 'html/record.html')
+    user_id = request.session.get('user_id')
+    username = request.session.get('username')
+    return render(request, 'html/record.html', {'user_id': user_id, 'username': username})
 
 
 def stock_lookup(request):

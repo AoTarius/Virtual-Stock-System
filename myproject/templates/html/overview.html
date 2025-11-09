@@ -280,7 +280,7 @@
 			<div class="actions">
 				<a class="user" href="#">
 					<span class="avatar" aria-hidden="true"></span>
-					<span>用户1234</span>
+					<span>{{ username|default:"游客" }}</span>
 				</a>
 			</div>
 		</div>
@@ -288,7 +288,7 @@
 
 	<!-- 页面其余占位内容，仅用于视觉对比 -->
 	<main class="main-content">
-        <h2>欢迎您，用户1234！</h2>
+		<h2>欢迎您，{{ username|default:"游客" }}！</h2>
 		<!-- 三数字行：三个等宽数字，中间用灰色短竖线分隔，整行平铺 -->
 		<div class="stats-row" aria-label="关键数字">
 			<div class="num-block">

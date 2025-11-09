@@ -118,12 +118,35 @@ def deduct_funds(user_id, amount):
     conn.close()
     print(f"用户：{user_id}扣款完成")
 
+# 获取用户的总投入和总资产
+def get_user_financials(user_id):
+    """
+    传入参数：
+    user_id: 用户ID
+    返回值：
+    (total_input, total_assets)
+    """
+    db_path = 'myproject/templates/db/user.db'
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute('''
+        SELECT total_input, funds FROM Users WHERE user_id = ?
+    ''', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        total_input, total_assets = row
+        print(f"用户：{user_id}的总投入为：{total_input}，总资产为：{total_assets}")
+        return total_input, total_assets
+    else:
+        print(f"用户：{user_id}不存在")
+        return None, None
 
 if __name__ == "__main__":
     # 示例操作
     import datetime
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    deposit_funds(1, 1000)  # 用户1充值1000
-    buy_stock(1, '000001.SZ', current_time, 10, 5.0)  # 用户1购买股票000001.SZ，10股，单价5.0
+    # deposit_funds(1, 1000)  # 用户1充值1000
+    # buy_stock(1, '000001.SZ', current_time, 10, 5.0)  # 用户1购买股票000001.SZ，10股，单价5.0
     # get_stock30('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的30天数据
     # get_stock1('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的当天数据
+    total_input, total_assets = get_user_financials(1)
