@@ -46,7 +46,32 @@ def reset_user_data(db_path, user_id):
     conn.close()
     print("用户{}数据已重置".format(user_id))
 
+# 删除输入的user_id用户
+def delete_user(db_path):
+    while True:
+        # 打印所有用户信息
+        conn = sqlite3.connect(db_path)
+        cursor = conn.execute('''
+            SELECT * FROM Users
+        ''')
+        users = cursor.fetchall()
+        for user in users:
+            print("用户ID: {}, 用户名: {}".format(user[0], user[1]))
+
+        user_id = int(input("请输入要删除的用户ID(输入0退出): "))
+        if user_id == 0:
+            break
+        conn = sqlite3.connect(db_path)
+        conn.execute('''
+            DELETE FROM Users
+            WHERE user_id = ?
+        ''', (user_id,))
+
+        conn.commit()
+        conn.close()
+        print("用户{}已删除".format(user_id))
+
 if __name__ == "__main__":
     initialize_user_db('myproject/templates/db/user.db') # 初始化数据库
-    create_default_user('myproject/templates/db/user.db') # 创建默认用户
+    # create_default_user('myproject/templates/db/user.db') # 创建默认用户
     # reset_user_data('myproject/templates/db/user.db', 1)  # 重置用户1的数据

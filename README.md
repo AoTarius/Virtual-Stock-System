@@ -6,31 +6,17 @@
 
 
 待开发功能：
-1. 用户界面 user.html，可以包含修改用户名（和充值选项，充值选项直接关系到invest投资中的余额，余额也可以在数据库中和userid挂钩）
-2. 登录界面/注册界面 login.html，可以创建新用户，也可以登录，创建新用户则需要再数据库生成新的用户名和userid
-3. 将html与django做适配
-4. 调用python脚本的动态更新。主要要更新的内容包括：
-    - invert.html 界面的某只股票今日股价、较昨日变化、30天走势图
-    - overview.html 界面，用户查看自己的股票情况
-    股票的调用已经有一个本地的脚本`get_user_stocks.py`，修改为django可调用的版本即可
-    用户查看自己情况的需要先开发5
-5. 设计数据库，记录用户名和userid的直接对应关系，以及数据库记录每一个userid的股票持有情况（包括哪天买的，买了多少股，买入价多少），用来在overview界面统一查询
-6. 投资概览界面 overview.html，主要显示的内容是用户已购买的所有股票在当天的 总投入 总盈亏 总市价
+1. `invest.html`中的30天走势图，可以使用StockOperations中的`get_stock30`函数获取画图素材`df`。纵轴数据是每一天的close，横轴数据是日期。
+2. `user.html`，包括充值功能。充值可以使用StockOperations中的`deposit_funds`进行充值
 
 可选开发：
 1. 买卖记录界面 record.html，主要展示用户在哪一天买了或卖了哪些股票
-
-
-==目前开发优先级==
-首先研究3，同时开发1 2
-4 5 6可以后续一人一个分开做，都是要用django动态更新的，3不做好都做不了
 
 
 django开发：
 1. 创建django环境。在项目文件夹根目录下使用`django-admin startproject <项目名称>`，创建新项目
 2. 同样在项目的根目录下，运行`python manage.py startapp <功能名称>`，创建新功能
 3. 在项目的根目录下，运行`python manage.py runserver`，使用manager.py启动服务器，对应的url会在终端给出
-
 
 创建`django`文件之后，首先会有若干预制文件：
 - `settings.py`：全局声明文件
