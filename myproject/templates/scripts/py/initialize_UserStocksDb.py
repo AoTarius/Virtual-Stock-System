@@ -35,12 +35,12 @@ def reset_user_stocks(db_path, user_id):
 
     conn.commit()
     conn.close()
-    print("用户的股票记录已重置")
+    print("用户{}的股票记录已重置".format(user_id))
 
 # 为目标用户插入一支股票
 # 默认设置：操作时间为当前时间，交易股数10，单价为5.0
-# 股票代码 000001
-def insert_default_stock(db_path, user_id, stockID='000001', piles=10, unitPrice=5.0):
+# 股票代码 000001.SZ
+def insert_default_stock(db_path, user_id, stockID='000001.SZ', piles=10, unitPrice=5.0):
     import datetime
     cost = piles * unitPrice
     conn = sqlite3.connect(db_path)
@@ -55,5 +55,5 @@ def insert_default_stock(db_path, user_id, stockID='000001', piles=10, unitPrice
 
 if __name__ == "__main__":
     # initialize_userStocks_db('myproject/templates/db/userStocks.db') # 初始化数据库
-    reset_user_stocks('myproject/templates/db/userStocks.db', 1) # 重置用户1的股票记录
-    # insert_default_stock('myproject/templates/db/userStocks.db', 1) # 插入默认股票记录
+    # reset_user_stocks('myproject/templates/db/userStocks.db', 1) # 重置用户1的股票记录
+    insert_default_stock('myproject/templates/db/userStocks.db', 1) # 插入默认股票记录

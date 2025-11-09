@@ -44,7 +44,7 @@ def reset_user_data(db_path, user_id):
 
     conn.commit()
     conn.close()
-    print("用户数据已重置")
+    print("用户{}数据已重置".format(user_id))
 
 if __name__ == "__main__":
     initialize_user_db('myproject/templates/db/user.db') # 初始化数据库
