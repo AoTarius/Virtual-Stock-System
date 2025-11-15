@@ -53,3 +53,6 @@ from django.http import HttpResponse
 def login_view(request):
     return HttpResponse("This is the login view.")  
 ```
+
+测试用充值功能：cmd运行`python manage.py runserver`后，
+直接在浏览器输入：'http://127.0.0.1:8000/myapp/dev/set_funds/?username=yourusername&amount=任何数字'

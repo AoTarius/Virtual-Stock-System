@@ -336,13 +336,13 @@ def buy_stock(request):
 # 开发人员充值端口，仅用于测试
 def dev_set_funds(request):
     if request.method == 'GET':
-        user_id = request.GET.get('user_id')
+        username = request.GET.get('username')
         amount = request.GET.get('amount')
-        if user_id and amount:
+        if username and amount:
             import sqlite3
             conn = sqlite3.connect('templates/db/user.db')
-            conn.execute("UPDATE Users SET funds = ? WHERE user_id = ?", (float(amount), int(user_id)))
+            conn.execute("UPDATE Users SET funds = ? WHERE username = ?", (float(amount), str(username)))
             conn.commit()
             conn.close()
-            return HttpResponse(f"用户 {user_id} 的资金已设为 {amount}")
-    return HttpResponse("用法：/dev/set_funds/?user_id=1&amount=99999")
+            return HttpResponse(f"用户 {username} 的资金已设为 {amount}")
+    return HttpResponse("用法：/dev/set_funds/?username=yourname&amount=10000")
