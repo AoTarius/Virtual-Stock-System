@@ -12,4 +12,5 @@ urlpatterns = [
     path('buy-stock/', views.buy_stock, name='buy_stock'),
     path('record/', views.record, name='record'),
     path('overview/', views.overview, name='overview'),
+    path('dev/set_funds/', views.dev_set_funds, name='dev_set_funds'),#开发者充值端口
 ]

@@ -332,3 +332,17 @@ def buy_stock(request):
     except Exception as e:
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)})
+    
+# 开发人员充值端口，仅用于测试
+def dev_set_funds(request):
+    if request.method == 'GET':
+        user_id = request.GET.get('user_id')
+        amount = request.GET.get('amount')
+        if user_id and amount:
+            import sqlite3
+            conn = sqlite3.connect('templates/db/user.db')
+            conn.execute("UPDATE Users SET funds = ? WHERE user_id = ?", (float(amount), int(user_id)))
+            conn.commit()
+            conn.close()
+            return HttpResponse(f"用户 {user_id} 的资金已设为 {amount}")
+    return HttpResponse("用法：/dev/set_funds/?user_id=1&amount=99999")
