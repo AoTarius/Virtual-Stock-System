@@ -6,8 +6,7 @@
 
 
 待开发功能：
-1. `invest.html`中的30天走势图，可以使用StockOperations中的`get_stock30`函数获取画图素材`df`。纵轴数据是每一天的close，横轴数据是日期。
-2. `user.html`，包括充值功能。充值可以使用StockOperations中的`deposit_funds`进行充值
+1. `user.html`，包括充值功能。充值可以使用StockOperations中的`deposit_funds`进行充值
 
 可选开发：
 1. 买卖记录界面 record.html，主要展示用户在哪一天买了或卖了哪些股票
@@ -56,3 +55,4 @@ def login_view(request):
 
 测试用充值功能：cmd运行`python manage.py runserver`后，
 直接在浏览器输入：'http://127.0.0.1:8000/myapp/dev/set_funds/?username=yourusername&amount=任何数字'
+快速测试：http://127.0.0.1:8000/myapp/invest/

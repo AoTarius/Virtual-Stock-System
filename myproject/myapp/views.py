@@ -189,10 +189,26 @@ def stock_info(request):
         spec = importlib.util.spec_from_file_location('StockOperations', str(so_path))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
+
         # call function
         df = mod.get_stock1(date, code)
-        if df is None:
+        if df is not None or (hasattr(df, 'empty') and df.empty):
+            df30 = mod.get_stock30(date,code)   
+            if df30 is not None and not df30.empty:
+                last = df30.iloc[-1]
+                close_val = float(last['close'])
+                change_val = float(last['change']) 
+                dates = df30['trade_date'].tolist() [::-1]  
+                closes = df30['close'].astype(float).tolist() [::-1]     
+                return JsonResponse({
+                    'found': True,
+                    'close': close_val,
+                    'change': change_val,
+                    'dates': dates,
+                    'closes': closes
+                })
             return JsonResponse({'found': False})
+        
         # dataframe-like check
         try:
             if hasattr(df, 'empty') and df.empty:

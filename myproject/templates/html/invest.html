@@ -220,7 +220,7 @@ http://localhost:8000/html/invest.html
         #stock-search .info-chart-col .field-title{ font-size:12px; color:#888 }
         #stock-search #today-price{ font-size:22px; font-weight:700; margin-top:6px }
         #stock-search #price-diff{ font-size:18px; margin-top:6px; color:#333 }
-        #stock-search #chart-area{ height:120px; border-radius:6px; background:linear-gradient(180deg,#fafafa,#fff); margin-top:8px; display:flex; align-items:center; justify-content:center; color:#bbb }
+        #stock-search #chart-area{ height: 240px;background: #fff;border-radius: 8px;padding: 8px;box-sizing: border-box; }
         #stock-search #stock-meta{ margin-top:12px; color:#666; font-size:13px }
 
 		/* 购入控件样式（初始隐藏，找到股票时显示） */
@@ -250,6 +250,8 @@ http://localhost:8000/html/invest.html
 		#btn-buy{ background:#2f6fe8; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer }
 		#btn-buy-cancel{ background:#f3f3f3; color:#333; border:1px solid #ddd; padding:8px 14px; border-radius:6px; cursor:pointer }
 	</style>
+	<script src="{% static 'js/dayjs.min.js' %}"></script>
+	<script src="{% static 'js/chart.umd.min.js' %}"></script>
 </head>
 <body>
 	<header class="topbar" role="banner">
@@ -323,7 +325,6 @@ http://localhost:8000/html/invest.html
 			<!-- 未收录提示 -->
 			<div id="not-found">该股票尚未收录，请更换代码尝试</div>
 
-			<!-- 展示区域（先用占位） -->
 			<div id="stock-info">
 				<div class="info-row">
 					<div class="info-col">
@@ -335,8 +336,10 @@ http://localhost:8000/html/invest.html
 						<div id="price-diff">—</div>
 					</div>
 					<div class="info-chart-col">
-						<div class="field-title">近30天走势（占位）</div>
-						<div id="chart-area">折线图占位</div>
+						<div class="field-title">近30天走势</div>
+						<div id="chart-area">
+							<canvas id="stockChart" width="400" height="200"></canvas>
+						</div>
 					</div>
 				</div>
 				<div id="stock-meta">股票信息占位：代码 / 名称 / 其他</div>
@@ -633,15 +636,135 @@ http://localhost:8000/html/invest.html
 			}
 			return false;
 		}
+		async function draw30DayChart(codeKey, stockMap, datePicker, stockInfoPath) {
+			console.log('🎨 准备画 30 日图', codeKey);
+			const meta = stockMap[codeKey] || {};
 
-		function showInfoForCode(codeKey){
+			let chartCanvas = document.getElementById('stockChart');
+			const chartArea = document.getElementById('chart-area');
+
+			if (!chartArea) {
+				console.error('图表容器不存在');
+				return;
+			}
+
+			if (!chartCanvas) {
+				chartArea.innerHTML = '<canvas id="stockChart" width="400" height="200"></canvas>';
+				chartCanvas = document.getElementById('stockChart');
+			}
+
+			if (window.myStockChart) {
+				window.myStockChart.destroy();
+				window.myStockChart = null;
+			}
+
+			let codeToSend = meta.code || '';
+			if (codeToSend && !codeToSend.includes('.') && meta.market) {
+				codeToSend = `${codeToSend}.${meta.market}`;
+			}
+
+			if (!datePicker || !datePicker.value) {
+				console.error('未选择日期');
+				chartArea.innerHTML = '<small class="text-muted">请先选择日期</small>';
+				return;
+			}
+
+			const dateParam = datePicker.value.replace(/-/g, '');
+			const url30 = `${stockInfoPath}?date=${dateParam}&code=${encodeURIComponent(codeToSend)}`;
+
+			console.log('📡 请求 30 日数据:', url30);
+
+			try {
+				const res30 = await fetch(url30);
+				const j30 = await res30.json();
+				console.log('📊 30 日数据响应:', j30);
+
+				if (j30.found && j30.dates && j30.closes && j30.dates.length > 0) {
+					const labels = j30.dates.map(d => {
+						if (d.length === 8) {
+							return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+						}
+						return d;
+					});
+
+					const ctx = chartCanvas.getContext('2d');
+					window.myStockChart = new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels: labels,
+							datasets: [{
+								label: '收盘价',
+								data: j30.closes,
+								borderColor: '#2f6fe8',
+								backgroundColor: 'rgba(47, 111, 232, 0.15)',
+								borderWidth: 2,
+								tension: 0.3,
+								pointRadius: 3,
+								pointHoverRadius: 6,
+								pointBackgroundColor: '#2f6fe8',
+								fill: true
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								legend: {
+									display: false
+								},
+								tooltip: {
+									mode: 'index',
+									intersect: false
+								}
+							},
+							scales: {
+								x: {
+									grid: {
+										display: false
+									},
+									ticks: {
+										maxTicksLimit: 8,
+										font: {
+											size: 11
+										},
+										color: '#666'
+									}
+								},
+								y: {
+									grid: {
+										color: 'rgba(0,0,0,0.06)',
+										drawBorder: false
+									},
+									ticks: {
+										font: {
+											size: 11
+										},
+										color: '#666',
+										callback: function (value) {
+											return '¥' + value.toFixed(2);
+										}
+									},
+									beginAtZero: false
+								}
+							}
+						}
+					});
+				} else {
+					console.warn('没有有效的 30 日数据:', j30);
+					chartArea.innerHTML = '<small class="text-muted">暂无 30 日走势数据</small>';
+				}
+			} catch (error) {
+				console.error('获取 30 日数据失败:', error);
+				chartArea.innerHTML = '<small class="text-muted">数据加载失败</small>';
+			}
+		}
+		function showInfoForCode(codeKey) {
+			const stockMap = indexedByCode;
 			const cols = loadAndIndex._cols || {};
 			const group = groupedByCode[codeKey] || [];
 			infoBox.style.display = 'block';
-			// 显示购入控件（只有在成功展示股票信息时）
-			if(buyControlsEl) buyControlsEl.style.display = 'flex';
-			if(indexedByCode[codeKey]){
-				// 使用 CSV 中的原始 code 字段并紧凑显示为 code.market/name（例如 000001.SZ/平安银行）
+			if (buyControlsEl) buyControlsEl.style.display = 'flex';
+			if (indexedByCode[codeKey]) {
 				const meta = indexedByCode[codeKey];
 				const marketPart = meta.market ? `.${meta.market}` : '';
 				stockMeta.textContent = `${meta.code}${marketPart}/${meta.name || '—'}`;
@@ -650,20 +773,20 @@ http://localhost:8000/html/invest.html
 			}
 
 			// 尝试计算今日与昨日价格
-			if(cols.dateCol && cols.closeCol && group.length>0){
+			if (cols.dateCol && cols.closeCol && group.length > 0) {
 				const latest = group[0];
 				const prev = group[1];
-				const latestPrice = parseFloat(String(latest[cols.closeCol]||'').replace(/,/g,''));
-				const prevPrice = prev ? parseFloat(String(prev[cols.closeCol]||'').replace(/,/g,'')) : NaN;
-				if(!isNaN(latestPrice)){
+				const latestPrice = parseFloat(String(latest[cols.closeCol] || '').replace(/,/g, ''));
+				const prevPrice = prev ? parseFloat(String(prev[cols.closeCol] || '').replace(/,/g, '')) : NaN;
+				if (!isNaN(latestPrice)) {
 					todayPriceEl.textContent = latestPrice;
 				} else { todayPriceEl.textContent = '—'; }
-				if(!isNaN(prevPrice)){
+				if (!isNaN(prevPrice)) {
 					const diff = latestPrice - prevPrice;
 					const pct = (diff / prevPrice * 100).toFixed(2);
-					const sign = diff>0 ? '+' : (diff<0? '': '');
+					const sign = diff > 0 ? '+' : (diff < 0 ? '' : '');
 					priceDiffEl.textContent = `${sign}${diff.toFixed(2)} (${pct}%)`;
-					priceDiffEl.style.color = diff>0? '#d9534f' : (diff<0? '#29a673' : '#333');
+					priceDiffEl.style.color = diff > 0 ? '#d9534f' : (diff < 0 ? '#29a673' : '#333');
 				} else {
 					priceDiffEl.textContent = '—';
 					priceDiffEl.style.color = '#333';
@@ -674,16 +797,13 @@ http://localhost:8000/html/invest.html
 				priceDiffEl.style.color = '#333';
 			}
 
-			// chartArea 保持占位（后续可以集成 Chart.js 或绘制 SVG）
-			chartArea.textContent = '（折线图占位 — 可通过集成 Chart.js 补充）';
-
-			// 同步向后端请求更详细的实时信息（可触发 buy_stock.py）
-			if(codeKey){
+			if (codeKey) {
+				draw30DayChart(codeKey, indexedByCode, datePickerEl, stockInfoPath);
 				// 仅当三个输入框（代码、名称、日期）都有值时，才调用后端获取实时（单日）数据
-				if(typeof fetchStockInfoFromServer === 'function' && inputCode.value.trim() && inputName.value.trim() && datePickerEl && datePickerEl.value){
-					try{
+				if (typeof fetchStockInfoFromServer === 'function' && inputCode.value.trim() && inputName.value.trim() && datePickerEl && datePickerEl.value) {
+					try {
 						fetchStockInfoFromServer(codeKey);
-					}catch(err){
+					} catch (err) {
 						console.warn('fetchStockInfoFromServer 调用失败：', err);
 					}
 				}
@@ -938,7 +1058,6 @@ http://localhost:8000/html/invest.html
 
 	})();
 	</script>
-
 	</body>
 </html>
 

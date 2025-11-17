@@ -463,7 +463,7 @@ if __name__ == "__main__":
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     deposit_funds(1, 1000)  # 用户1充值1000
     # buy_stock(1, '000002.SZ', current_time, 15, 5.7)  # 用户1购买股票
-    # get_stock30('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的30天数据
+
     # get_stock1('20240620', '000001.SZ')  # 获取股票000001.SZ在2024-06-20的当天数据
     # total_input, total_assets = get_user_financials(1)
     # get_user_total_stock_value(1, '20240620')
