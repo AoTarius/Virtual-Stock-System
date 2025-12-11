@@ -195,17 +195,30 @@ def stock_info(request):
         if df is not None or (hasattr(df, 'empty') and df.empty):
             df30 = mod.get_stock30(date,code)   
             if df30 is not None and not df30.empty:
-                last = df30.iloc[-1]
+                last = df30.iloc[-1]          
                 close_val = float(last['close'])
-                change_val = float(last['change']) 
-                dates = df30['trade_date'].tolist() [::-1]  
-                closes = df30['close'].astype(float).tolist() [::-1]     
+                change_val = float(last['change'])
+                dates   = df30['trade_date'].astype(str).tolist()
+                closes  = df30['close'].astype(float).tolist()
+                volumes = df30['vol'].astype(float).tolist()
+                amounts = df30['amount'].astype(float).tolist()
+                pct_chgs= df30['pct_chg'].astype(float).tolist()
+                opens   = df30['open'].astype(float).tolist()
+                highs   = df30['high'].astype(float).tolist()
+                lows    = df30['low'].astype(float).tolist()  
+                  
                 return JsonResponse({
                     'found': True,
                     'close': close_val,
                     'change': change_val,
                     'dates': dates,
-                    'closes': closes
+                    'closes': closes,
+                    'volumes': volumes,
+                    'amounts': amounts,
+                    'pct_chgs': pct_chgs,
+                    'opens': opens,
+                    'highs': highs,
+                    'lows': lows
                 })
             return JsonResponse({'found': False})
         
