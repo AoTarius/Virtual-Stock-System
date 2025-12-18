@@ -557,6 +557,10 @@ http://localhost:8000/html/invest.html
 						<div class="field-title">较昨日变化</div>
 						<div id="price-diff">—</div>
 					</div>
+					<div class="info-col">
+						<div class="field-title">预测明日股价</div>
+						<div id="price-predict">—</div>
+					</div>
 					<div class="info-chart-col">
 						<div class="field-title">近30天走势</div>
 						<!-- 外容器：放侧栏 + 图 -->
@@ -621,9 +625,13 @@ http://localhost:8000/html/invest.html
 					if (!res.ok) { throw new Error('network'); }
 					const j = await res.json();
 					if (j && j.found) {
-						// 填写返回的 close 和 change；若为空则显示“暂无信息”
-						todayPriceEl.textContent = (j.close !== null && j.close !== undefined) ? j.close : '暂无信息';
-						priceDiffEl.textContent = (j.change !== null && j.change !== undefined) ? j.change : '暂无信息';
+						const formatNum = v => (typeof v === 'number' ? v.toFixed(2) : '暂无信息');
+						// 填写返回的 close / change / predicted；若为空则显示“暂无信息”
+						todayPriceEl.textContent = (j.close !== null && j.close !== undefined) ? formatNum(j.close) : '暂无信息';
+						priceDiffEl.textContent = (j.change !== null && j.change !== undefined) ? formatNum(j.change) : '暂无信息';
+						if (pricePredictEl) {
+							pricePredictEl.textContent = (j.predicted_close !== null && j.predicted_close !== undefined) ? formatNum(j.predicted_close) : '暂无信息';
+						}
 						// 颜色标识（正红、负绿）
 						if (typeof j.change === 'number') {
 							priceDiffEl.style.color = j.change > 0 ? '#d9534f' : (j.change < 0 ? '#29a673' : '#333');
@@ -631,12 +639,14 @@ http://localhost:8000/html/invest.html
 					} else {
 						todayPriceEl.textContent = '暂无信息';
 						priceDiffEl.textContent = '暂无信息';
+						if (pricePredictEl) pricePredictEl.textContent = '暂无信息';
 					}
 				} catch (err) {
 					console.warn('fetchStockInfoFromServer 请求失败', err);
 					// 保守降级为暂无信息
 					todayPriceEl.textContent = '暂无信息';
 					priceDiffEl.textContent = '暂无信息';
+					if (pricePredictEl) pricePredictEl.textContent = '暂无信息';
 				}
 			}
 
@@ -720,6 +730,7 @@ http://localhost:8000/html/invest.html
 			const buyControlsEl = document.getElementById('buy-controls');
 			const todayPriceEl = document.getElementById('today-price');
 			const priceDiffEl = document.getElementById('price-diff');
+			const pricePredictEl = document.getElementById('price-predict');
 			const chartArea = document.getElementById('chart-area');
 			const stockMeta = document.getElementById('stock-meta');
 			const btnClear = document.getElementById('btn-clear');
@@ -1116,6 +1127,7 @@ http://localhost:8000/html/invest.html
 				infoBox.style.display = 'none';
 				notFoundEl.style.display = 'none';
 				if (buyControlsEl) buyControlsEl.style.display = 'none';
+				if (pricePredictEl) pricePredictEl.textContent = '—';
 				// 清除选择的日期
 				if (selectedDateEl) selectedDateEl.value = '';
 				if (datePickerEl) datePickerEl.value = '';

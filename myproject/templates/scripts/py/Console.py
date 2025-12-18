@@ -15,6 +15,6 @@ if __name__ == "__main__":
     # reset_user_stocks(DB_PATH_USERSTOCKS, 1)  # 重置用户1的股票记录
     # insert_default_stock(DB_PATH_USERSTOCKS, 1)  # 插入默认股票记录
 
-    # deposit_funds(1, 1000)  # 用户1充值1000
+    deposit_funds(1, 1000)  # 用户1充值1000
     # deduct_funds(1, 200)    # 用户1扣款200
-    delete_user(DB_PATH_USER)  # 删除指定用户
+    # delete_user(DB_PATH_USER)  # 删除指定用户

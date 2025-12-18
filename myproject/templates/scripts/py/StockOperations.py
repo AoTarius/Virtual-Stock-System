@@ -457,6 +457,32 @@ def get_user_holdings(user_id, date):
 
     return holdings
 
+def predict_next_close(df):
+    import numpy as np
+    from sklearn.linear_model import LinearRegression
+
+    df = df.sort_values('trade_date').reset_index(drop=True)
+
+    # 特征：当日 open/high/low 以及可选的当日成交量/涨跌幅
+    feature_cols = ['open', 'high', 'low']  # 可加 'vol', 'pct_chg'
+    # 目标：下一天的 close
+    df['target_close'] = df['close'].shift(-1)
+
+    # 去掉最后一天（因没有下一天的 close）
+    train = df.dropna(subset=['target_close'])
+    if len(train) < 5:  # 太少时提醒
+        raise ValueError('训练样本太少，至少需要几条以上数据')
+
+    X = train[feature_cols].values
+    y = train['target_close'].values
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # 用最新一天的特征预测下一天
+    last_row = df.iloc[-1][feature_cols].values.reshape(1, -1)
+    return float(model.predict(last_row)[0])
+
 if __name__ == "__main__":
     # 示例操作
     import datetime

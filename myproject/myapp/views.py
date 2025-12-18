@@ -193,11 +193,16 @@ def stock_info(request):
         # call function
         df = mod.get_stock1(date, code)
         if df is not None or (hasattr(df, 'empty') and df.empty):
-            df30 = mod.get_stock30(date,code)   
+            df30 = mod.get_stock30(date,code)
             if df30 is not None and not df30.empty:
                 last = df30.iloc[-1]          
                 close_val = float(last['close'])
                 change_val = float(last['change'])
+                predicted_close = None
+                try:
+                    predicted_close = mod.predict_next_close(df30)
+                except Exception:
+                    predicted_close = None
                 dates   = df30['trade_date'].astype(str).tolist()
                 closes  = df30['close'].astype(float).tolist()
                 volumes = df30['vol'].astype(float).tolist()
@@ -211,6 +216,7 @@ def stock_info(request):
                     'found': True,
                     'close': close_val,
                     'change': change_val,
+                    'predicted_close': predicted_close,
                     'dates': dates,
                     'closes': closes,
                     'volumes': volumes,
